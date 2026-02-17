@@ -1,653 +1,1434 @@
-<script>
-  // #################################################
-  // 0) UTIL
-  // #################################################
-  const LS_KEY = "flashcard_pro_enem_v2";
-  const generateSimpleId = (prefix) => prefix + "-" + Math.random().toString(36).slice(2, 9) + "-" + Date.now();
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flashcard Pro ENEM — ENEM 2020+ (Local Storage)</title>
 
-  const safeJSONParse = (str, fallback) => {
-    try { return JSON.parse(str); } catch { return fallback; }
-  };
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
 
-  const saveState = (state) => localStorage.setItem(LS_KEY, JSON.stringify(state));
-  const loadState = () => safeJSONParse(localStorage.getItem(LS_KEY), null);
-
-  const $ = (id) => document.getElementById(id);
-
-  const normalizeSubject = (qText) => {
-    // tenta achar "(Inglês)" "(Espanhol)" etc no cabeçalho da questão
-    const m = qText.match(/\((Ingl[eê]s|Espanhol|Franc[eê]s)\)/i);
-    if (m) {
-      const s = m[1].toLowerCase();
-      if (s.includes("ing")) return "Inglês";
-      if (s.includes("esp")) return "Espanhol";
-      if (s.includes("fra")) return "Francês";
-      return m[1];
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f172a;
+      --panel2:#0b1220;
+      --muted:#94a3b8;
+      --line:rgba(148,163,184,.18);
+      --ok:#22c55e;
+      --bad:#ef4444;
+      --warn:#f59e0b;
+      --accent:#60a5fa;
     }
-    // fallback: considera Linguagens/Português
-    return "Linguagens/Português";
-  };
-
-  const stripAnswerPrefix = (ans) => ans.replace(/^Gabarito:\s*/i, "").trim();
-
-  // #################################################
-  // 1) DADOS INICIAIS — VOCÊ JÁ TEM ENEM_2020_D1 ACIMA
-  // #################################################
-  // Esperado: const ENEM_2020_D1 = [ {id, question, answer}, ... ];
-
-  // #################################################
-  // 2) ESTADO GLOBAL
-  // #################################################
-  let state = null;
-
-  let currentDeckId = null;
-  let currentCardIndex = 0;
-  let isFlipped = false;
-  let reviewMode = false; // se true: só difíceis
-  let sessionOrder = [];  // lista de ids na ordem atual de estudo
-
-  // #################################################
-  // 3) MODELO DE DADOS NO localStorage
-  // #################################################
-  const makeFreshState = () => ({
-    decks: {},          // { deckId: { id, name, cards: [ {id, question, answer} ] } }
-    deckOrder: [],      // [deckId, ...]
-    difficultByDeck: {},// { deckId: Set(ids) -> armazenado como array no state }
-    stats: {
-      totalReviewed: 0,
-      byDeck: {}        // { deckId: { reviewed, correct, incorrect } }
+    html,body{height:100%;}
+    body{
+      background: radial-gradient(1200px 600px at 30% -10%, rgba(96,165,250,.25), transparent 55%),
+                  radial-gradient(1200px 700px at 80% 0%, rgba(34,197,94,.18), transparent 60%),
+                  linear-gradient(180deg, #05070a, #0b0f14 35%, #070a10);
+      color:#e5e7eb;
+      overflow-x:hidden;
     }
-  });
 
-  const ensureDeckStats = (deckId) => {
-    if (!state.stats.byDeck[deckId]) {
-      state.stats.byDeck[deckId] = { reviewed: 0, correct: 0, incorrect: 0 };
+    /* glass panels */
+    .glass{
+      background: linear-gradient(180deg, rgba(15,23,42,.78), rgba(11,18,32,.72));
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
+      backdrop-filter: blur(10px);
     }
-  };
+    .soft-border{ border:1px solid var(--line); }
 
-  const getDifficultSet = (deckId) => {
-    const arr = state.difficultByDeck[deckId] || [];
-    return new Set(arr);
-  };
+    /* buttons */
+    .btn{
+      display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+      border:1px solid var(--line);
+      background: rgba(15,23,42,.6);
+      padding:.55rem .8rem;
+      border-radius:.75rem;
+      transition: transform .08s ease, background .15s ease, border-color .15s ease;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(15,23,42,.85); border-color: rgba(96,165,250,.35); }
+    .btn:active{ transform: scale(.98); }
+    .btnPrimary{
+      background: linear-gradient(180deg, rgba(96,165,250,.22), rgba(96,165,250,.10));
+      border-color: rgba(96,165,250,.35);
+    }
+    .btnOk{
+      background: linear-gradient(180deg, rgba(34,197,94,.20), rgba(34,197,94,.08));
+      border-color: rgba(34,197,94,.32);
+    }
+    .btnBad{
+      background: linear-gradient(180deg, rgba(239,68,68,.20), rgba(239,68,68,.08));
+      border-color: rgba(239,68,68,.32);
+    }
 
-  const setDifficultSet = (deckId, setObj) => {
-    state.difficultByDeck[deckId] = Array.from(setObj);
-  };
+    /* inputs */
+    .inpt, select, textarea{
+      background: rgba(2,6,23,.35);
+      border:1px solid var(--line);
+      border-radius:.75rem;
+      padding:.6rem .75rem;
+      outline:none;
+      width:100%;
+      color:#e5e7eb;
+    }
+    .inpt:focus, select:focus, textarea:focus{
+      border-color: rgba(96,165,250,.45);
+      box-shadow: 0 0 0 3px rgba(96,165,250,.12);
+    }
 
-  // #################################################
-  // 4) BOOTSTRAP: instala o ENEM 2020 D1 na primeira vez
-  // #################################################
-  const bootstrapIfNeeded = () => {
-    state = loadState();
-    if (!state) state = makeFreshState();
+    /* card flip */
+    .flipWrap{ perspective: 1200px; }
+    .flipCard{
+      position: relative;
+      width:100%;
+      min-height: 360px;
+      transform-style: preserve-3d;
+      transition: transform .6s cubic-bezier(.2,.9,.2,1);
+    }
+    .flipCard.isFlipped{ transform: rotateY(180deg); }
+    .face{
+      position:absolute; inset:0;
+      backface-visibility:hidden;
+      border-radius: 1rem;
+      overflow:hidden;
+    }
+    .back{ transform: rotateY(180deg); }
 
-    // Se não tiver deck nenhum, cria decks a partir do ENEM_2020_D1
-    if (!state.deckOrder || state.deckOrder.length === 0) {
-      const buckets = {}; // subject -> cards[]
-      for (const c of (typeof ENEM_2020_D1 !== "undefined" ? ENEM_2020_D1 : [])) {
-        const subj = normalizeSubject(c.question);
-        if (!buckets[subj]) buckets[subj] = [];
-        buckets[subj].push({
-          id: c.id || generateSimpleId("card"),
-          question: c.question,
-          answer: c.answer
+    /* small pills */
+    .pill{
+      display:inline-flex; align-items:center; gap:.35rem;
+      padding:.25rem .6rem;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(2,6,23,.28);
+      color:#cbd5e1;
+      font-size:.78rem;
+      white-space:nowrap;
+    }
+
+    /* modal */
+    .modalOverlay{
+      position:fixed; inset:0; z-index:50;
+      background: rgba(0,0,0,.55);
+      display:none; align-items:center; justify-content:center;
+      padding: 14px;
+    }
+    .modalOverlay.show{ display:flex; }
+    .modal{
+      width:min(920px, 100%);
+      max-height: 90vh;
+      overflow:auto;
+      border-radius: 1rem;
+    }
+
+    /* toast */
+    .toast{
+      position: fixed; z-index: 60;
+      left: 50%; transform: translateX(-50%);
+      bottom: 16px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(2,6,23,.75);
+      backdrop-filter: blur(10px);
+      display:none;
+      max-width: min(680px, 92vw);
+    }
+    .toast.show{ display:block; animation: pop .16s ease; }
+    @keyframes pop{ from{ transform: translateX(-50%) translateY(10px); opacity:.2; } to{ transform: translateX(-50%) translateY(0); opacity:1; } }
+
+    /* export image canvas wrapper */
+    .captureArea{
+      background: radial-gradient(600px 280px at 30% 0%, rgba(96,165,250,.22), transparent 65%),
+                  radial-gradient(600px 280px at 80% 10%, rgba(34,197,94,.18), transparent 65%),
+                  linear-gradient(180deg, rgba(15,23,42,.86), rgba(11,18,32,.80));
+      border: 1px solid rgba(148,163,184,.22);
+      border-radius: 16px;
+      padding: 14px;
+      width: 820px;
+      color:#e5e7eb;
+    }
+    @media (max-width: 860px){
+      .captureArea{ width: 92vw; }
+    }
+
+    /* accessibility */
+    .sr-only{
+      position:absolute; width:1px; height:1px;
+      padding:0; margin:-1px; overflow:hidden;
+      clip:rect(0,0,0,0); white-space:nowrap; border:0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="max-w-6xl mx-auto px-3 py-5 md:py-8">
+    <!-- Header -->
+    <header class="glass rounded-2xl p-4 md:p-6 mb-4 md:mb-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl glass flex items-center justify-center">
+              <span class="text-xl">🧠</span>
+            </div>
+            <div>
+              <h1 class="text-xl md:text-2xl font-semibold tracking-tight">Flashcard Pro ENEM</h1>
+              <p class="text-sm text-slate-300/80">Local Storage • filtros por Ano/Área • estatísticas • exportar resultado em imagem</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <button class="btn btnPrimary" id="btnOpenManager">➕ Gerenciar cards</button>
+          <button class="btn" id="btnExportJson">⬇️ Exportar JSON</button>
+          <label class="btn cursor-pointer">
+            ⬆️ Importar JSON
+            <input id="fileImport" type="file" accept="application/json" class="hidden">
+          </label>
+          <button class="btn" id="btnResetSession" title="Zera acertos/erros desta sessão (não apaga cards)">🔄 Reset sessão</button>
+          <button class="btn" id="btnResetAll" title="Apaga TUDO (cards + estatísticas).">🧨 Reset total</button>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 mt-4">
+        <div class="md:col-span-4">
+          <label class="text-xs text-slate-300/80">Busca (texto / alternativa / comentário)</label>
+          <input id="qSearch" class="inpt" placeholder="Ex.: cidadania, Kant, desigualdade, questão 12..." />
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="text-xs text-slate-300/80">Ano</label>
+          <select id="qYear" class="inpt"></select>
+        </div>
+
+        <div class="md:col-span-3">
+          <label class="text-xs text-slate-300/80">Área</label>
+          <select id="qArea" class="inpt"></select>
+        </div>
+
+        <div class="md:col-span-3">
+          <label class="text-xs text-slate-300/80">Modo</label>
+          <div class="flex gap-2">
+            <button class="btn flex-1" id="btnModeStudy" title="Mostra cards e permite marcar acerto/erro">📚 Estudo</button>
+            <button class="btn flex-1" id="btnModeReview" title="Só revisa erros desta sessão">🧪 Revisão de erros</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-4">
+        <div class="flex flex-wrap gap-2">
+          <span class="pill" id="pillTotal">Total: 0</span>
+          <span class="pill" id="pillFiltered">Filtrados: 0</span>
+          <span class="pill" id="pillIndex">Card: 0/0</span>
+          <span class="pill" id="pillFlip">Frente</span>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <span class="pill" id="pillOk">✅ Acertos: 0</span>
+          <span class="pill" id="pillBad">❌ Erros: 0</span>
+          <span class="pill" id="pillAcc">🎯 Precisão: 0%</span>
+          <button class="btn" id="btnExportStatsImage">🖼️ Exportar resultado (imagem)</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <!-- Card Viewer -->
+      <section class="lg:col-span-8">
+        <div class="glass rounded-2xl p-4 md:p-5">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="pill" id="metaYear">Ano: —</span>
+              <span class="pill" id="metaArea">Área: —</span>
+              <span class="pill" id="metaId">ID: —</span>
+            </div>
+            <div class="flex gap-2">
+              <button class="btn" id="btnPrev">⬅️ Anterior</button>
+              <button class="btn" id="btnFlip">🔁 Virar</button>
+              <button class="btn" id="btnNext">Próximo ➡️</button>
+            </div>
+          </div>
+
+          <div class="flipWrap">
+            <div class="flipCard" id="flipCard">
+              <!-- Front -->
+              <div class="face front glass p-4 md:p-6">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 class="text-lg md:text-xl font-semibold leading-tight" id="frontTitle">Nenhum card</h2>
+                    <p class="text-sm text-slate-300/80 mt-1" id="frontSubtitle">Adicione cards em “Gerenciar cards”.</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="btn" id="btnShuffle" title="Embaralhar cards filtrados">🎲</button>
+                  </div>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                  <div class="soft-border rounded-2xl p-4 bg-slate-950/20">
+                    <p class="text-sm text-slate-300/80 mb-2">Enunciado / Texto-base</p>
+                    <div class="whitespace-pre-wrap leading-relaxed" id="frontPrompt">—</div>
+                  </div>
+
+                  <div class="soft-border rounded-2xl p-4 bg-slate-950/20">
+                    <p class="text-sm text-slate-300/80 mb-2">Alternativas</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2" id="frontOptions"></div>
+                  </div>
+                </div>
+
+                <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div class="text-xs text-slate-300/70">
+                    Dica: pressione <b>Espaço</b> para virar • <b>←/→</b> para navegar • <b>R</b> para reset da sessão
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="btn btnOk flex-1 md:flex-none" id="btnMarkOk">✅ Acertei</button>
+                    <button class="btn btnBad flex-1 md:flex-none" id="btnMarkBad">❌ Errei</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Back -->
+              <div class="face back glass p-4 md:p-6">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 class="text-lg md:text-xl font-semibold leading-tight">Gabarito + Explicação</h2>
+                    <p class="text-sm text-slate-300/80 mt-1" id="backSubtitle">—</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="btn" id="btnEditCurrent" title="Editar este card">✏️ Editar</button>
+                  </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3">
+                  <div class="soft-border rounded-2xl p-4 bg-slate-950/20">
+                    <p class="text-sm text-slate-300/80 mb-2">Alternativa correta</p>
+                    <div class="text-2xl font-semibold" id="backAnswer">—</div>
+                  </div>
+
+                  <div class="soft-border rounded-2xl p-4 bg-slate-950/20">
+                    <p class="text-sm text-slate-300/80 mb-2">Justificativa (curta e objetiva)</p>
+                    <div class="whitespace-pre-wrap leading-relaxed" id="backExplain">—</div>
+                  </div>
+
+                  <div class="soft-border rounded-2xl p-4 bg-slate-950/20">
+                    <p class="text-sm text-slate-300/80 mb-2">Tags (opcional)</p>
+                    <div class="flex flex-wrap gap-2" id="backTags"></div>
+                  </div>
+                </div>
+
+                <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div class="text-xs text-slate-300/70">Dica: clique em “Editar” para corrigir texto/alternativas sem apagar histórico.</div>
+                  <div class="flex gap-2">
+                    <button class="btn btnOk flex-1 md:flex-none" id="btnMarkOk2">✅ Acertei</button>
+                    <button class="btn btnBad flex-1 md:flex-none" id="btnMarkBad2">❌ Errei</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Side Panel -->
+      <aside class="lg:col-span-4">
+        <div class="glass rounded-2xl p-4 md:p-5 space-y-4">
+          <div>
+            <h3 class="font-semibold text-lg">Painel rápido</h3>
+            <p class="text-sm text-slate-300/80 mt-1">Controle de sessão + revisão de erros (sem bagunça).</p>
+          </div>
+
+          <div class="soft-border rounded-2xl p-4 bg-slate-950/15">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-300/80">Sessão atual</span>
+              <span class="pill" id="pillSessionId">—</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-3">
+              <button class="btn" id="btnGoFirst">⏮️ Primeiro</button>
+              <button class="btn" id="btnGoLast">⏭️ Último</button>
+              <button class="btn" id="btnOnlyUnseen">👀 Só não vistos</button>
+              <button class="btn" id="btnClearFilter">🧹 Limpar filtros</button>
+            </div>
+          </div>
+
+          <div class="soft-border rounded-2xl p-4 bg-slate-950/15">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-slate-300/80">Revisão de erros (sessão)</span>
+              <span class="pill" id="pillErrCount">0</span>
+            </div>
+            <div class="mt-3 space-y-2">
+              <button class="btn w-full" id="btnStartErrorReview">🧪 Começar revisão</button>
+              <button class="btn w-full" id="btnClearErrors">🧽 Limpar lista de erros</button>
+            </div>
+          </div>
+
+          <div class="soft-border rounded-2xl p-4 bg-slate-950/15">
+            <p class="text-sm text-slate-300/80 mb-2">Como adicionar suas questões rapidamente</p>
+            <ol class="text-sm space-y-1 text-slate-200/90 list-decimal pl-5">
+              <li>Abra <b>Gerenciar cards</b></li>
+              <li>Cole a questão + alternativas + gabarito</li>
+              <li>Salve. Pronto.</li>
+            </ol>
+          </div>
+
+          <div class="text-xs text-slate-300/70">
+            ⚠️ GitHub Pages: sempre substitua o <b>arquivo inteiro</b> com este HTML completo (começa em <code>&lt;!DOCTYPE html&gt;</code>).
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Manager Modal -->
+  <div class="modalOverlay" id="managerOverlay" aria-hidden="true">
+    <div class="modal glass p-4 md:p-6" role="dialog" aria-modal="true" aria-labelledby="mgrTitle">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 id="mgrTitle" class="text-xl font-semibold">Gerenciar cards</h2>
+          <p class="text-sm text-slate-300/80 mt-1">Adicionar / editar / apagar. Tudo fica salvo no seu navegador (Local Storage).</p>
+        </div>
+        <button class="btn" id="btnCloseManager">✖️</button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 mt-4">
+        <!-- Editor -->
+        <div class="lg:col-span-7 space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-xs text-slate-300/80">Ano</label>
+              <input id="fYear" class="inpt" placeholder="2020" />
+            </div>
+            <div>
+              <label class="text-xs text-slate-300/80">Área</label>
+              <select id="fArea" class="inpt">
+                <option value="Linguagens">Linguagens</option>
+                <option value="Humanas">Humanas</option>
+                <option value="Natureza">Natureza</option>
+                <option value="Matemática">Matemática</option>
+                <option value="Redação">Redação</option>
+                <option value="Geral">Geral</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-300/80">ID (auto)</label>
+              <input id="fId" class="inpt" placeholder="auto" disabled />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-300/80">Título curto</label>
+            <input id="fTitle" class="inpt" placeholder="Ex.: Cidadania e Direitos — Questão 02" />
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-300/80">Enunciado / Texto-base</label>
+            <textarea id="fPrompt" class="inpt" rows="6" placeholder="Cole aqui o texto-base/enunciado completo..."></textarea>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-slate-300/80">Alternativa A</label>
+              <textarea id="fA" class="inpt" rows="2"></textarea>
+            </div>
+            <div>
+              <label class="text-xs text-slate-300/80">Alternativa B</label>
+              <textarea id="fB" class="inpt" rows="2"></textarea>
+            </div>
+            <div>
+              <label class="text-xs text-slate-300/80">Alternativa C</label>
+              <textarea id="fC" class="inpt" rows="2"></textarea>
+            </div>
+            <div>
+              <label class="text-xs text-slate-300/80">Alternativa D</label>
+              <textarea id="fD" class="inpt" rows="2"></textarea>
+            </div>
+            <div class="md:col-span-2">
+              <label class="text-xs text-slate-300/80">Alternativa E</label>
+              <textarea id="fE" class="inpt" rows="2"></textarea>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-xs text-slate-300/80">Gabarito (A–E)</label>
+              <select id="fAnswer" class="inpt">
+                <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option><option value="E">E</option>
+              </select>
+            </div>
+            <div class="md:col-span-2">
+              <label class="text-xs text-slate-300/80">Tags (separadas por vírgula)</label>
+              <input id="fTags" class="inpt" placeholder="cidadania, direitos, minorias, sociologia..." />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-slate-300/80">Justificativa curta (por que a alternativa correta é a correta)</label>
+            <textarea id="fExplain" class="inpt" rows="4" placeholder="Explique de forma curta e objetiva..."></textarea>
+          </div>
+
+          <div class="flex flex-wrap gap-2 pt-1">
+            <button class="btn btnPrimary" id="btnSaveCard">💾 Salvar</button>
+            <button class="btn" id="btnNewCard">🧾 Novo</button>
+            <button class="btn btnBad" id="btnDeleteCard">🗑️ Apagar</button>
+            <button class="btn" id="btnSeedDemo" title="Cria 3 cards demo (você pode apagar depois)">✨ Inserir demo</button>
+          </div>
+        </div>
+
+        <!-- List -->
+        <div class="lg:col-span-5">
+          <div class="soft-border rounded-2xl p-4 bg-slate-950/15">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="font-semibold">Lista</h3>
+              <span class="pill" id="mgrCount">0</span>
+            </div>
+
+            <div class="mt-3">
+              <input id="mgrSearch" class="inpt" placeholder="Buscar na lista..." />
+            </div>
+
+            <div class="mt-3 space-y-2 max-h-[58vh] overflow-auto pr-1" id="mgrList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden capture node (for export image) -->
+  <div class="sr-only" aria-hidden="true">
+    <div id="captureNode" class="captureArea">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:44px;height:44px;border-radius:14px;border:1px solid rgba(148,163,184,.24);display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,.20);">
+            🧠
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:18px;line-height:1.15;">Flashcard Pro ENEM — Resultado</div>
+            <div style="opacity:.8;font-size:12px;margin-top:2px;" id="capSubtitle">Sessão: —</div>
+          </div>
+        </div>
+        <div style="opacity:.75;font-size:12px;text-align:right;">
+          <div id="capDate">—</div>
+          <div style="margin-top:2px;" id="capFilters">Filtros: —</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;">
+        <div style="border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:10px;background:rgba(2,6,23,.16);">
+          <div style="opacity:.75;font-size:12px;">Acertos</div>
+          <div style="font-size:22px;font-weight:700;margin-top:3px;" id="capOk">0</div>
+        </div>
+        <div style="border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:10px;background:rgba(2,6,23,.16);">
+          <div style="opacity:.75;font-size:12px;">Erros</div>
+          <div style="font-size:22px;font-weight:700;margin-top:3px;" id="capBad">0</div>
+        </div>
+        <div style="border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:10px;background:rgba(2,6,23,.16);">
+          <div style="opacity:.75;font-size:12px;">Precisão</div>
+          <div style="font-size:22px;font-weight:700;margin-top:3px;" id="capAcc">0%</div>
+        </div>
+        <div style="border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:10px;background:rgba(2,6,23,.16);">
+          <div style="opacity:.75;font-size:12px;">Cards filtrados</div>
+          <div style="font-size:22px;font-weight:700;margin-top:3px;" id="capFiltered">0</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:10px;margin-top:12px;background:rgba(2,6,23,.16);">
+        <div style="opacity:.75;font-size:12px;">Notas</div>
+        <div style="font-size:13px;line-height:1.45;opacity:.92;margin-top:4px;" id="capNotes">
+          Exportado diretamente do Flashcard Pro ENEM.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    /********************************************************************
+     * Flashcard Pro ENEM — single-file app (GitHub Pages friendly)
+     * - LocalStorage for cards and session stats
+     * - Filters: search, year, area
+     * - Study mode / Error review mode (session)
+     * - Manager modal: add/edit/delete
+     * - Export/Import JSON (cards only)
+     * - Export stats image (no external libs)
+     ********************************************************************/
+
+    const LS_KEY = "flashcard_enem_pro_v1";
+    const LS_SESSION = "flashcard_enem_session_v1";
+
+    const uid = () => "c_" + Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
+
+    const safeJSON = (s, fallback) => { try { return JSON.parse(s); } catch { return fallback; } };
+
+    const saveState = (state) => localStorage.setItem(LS_KEY, JSON.stringify(state));
+    const loadState = () => safeJSON(localStorage.getItem(LS_KEY), null);
+
+    const saveSession = (sess) => localStorage.setItem(LS_SESSION, JSON.stringify(sess));
+    const loadSession = () => safeJSON(localStorage.getItem(LS_SESSION), null);
+
+    const $ = (id) => document.getElementById(id);
+
+    const toast = (msg) => {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+    };
+
+    // Default state
+    const defaultState = () => ({
+      version: 1,
+      cards: []
+    });
+
+    const defaultSession = () => ({
+      sessionId: "S-" + new Date().toISOString().slice(0,10),
+      ok: 0,
+      bad: 0,
+      seenIds: [],
+      errorIds: []
+    });
+
+    let state = loadState() || defaultState();
+    let session = loadSession() || defaultSession();
+
+    // UI state
+    let mode = "study"; // "study" | "review"
+    let filtered = [];
+    let idx = 0;
+    let flipped = false;
+    let onlyUnseen = false;
+    let reviewList = []; // errorIds mapped to cards
+    let shuffleLock = false;
+
+    /***********************
+     * Helpers
+     ***********************/
+    const norm = (s) => (s || "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu,"");
+    const uniq = (arr) => Array.from(new Set(arr));
+    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+    const pct = (a,b) => b === 0 ? 0 : Math.round((a/b)*100);
+
+    const getAllYears = () => {
+      const years = state.cards.map(c => (c.year || "").toString().trim()).filter(Boolean);
+      return uniq(years).sort((a,b)=> a.localeCompare(b, "pt-BR", {numeric:true}));
+    };
+    const getAllAreas = () => {
+      const areas = state.cards.map(c => (c.area || "").toString().trim()).filter(Boolean);
+      const base = ["Todos","Linguagens","Humanas","Natureza","Matemática","Redação","Geral"];
+      const extra = uniq(areas).filter(a => !base.includes(a));
+      return base.concat(extra);
+    };
+
+    const makeOptionBtn = (letter, text) => {
+      const div = document.createElement("button");
+      div.className = "soft-border rounded-2xl p-3 bg-slate-950/10 hover:bg-slate-950/25 transition text-left";
+      div.innerHTML = `<div class="text-xs text-slate-300/80 mb-1">${letter}</div><div class="text-sm leading-relaxed whitespace-pre-wrap">${escapeHtml(text||"")}</div>`;
+      div.type = "button";
+      div.addEventListener("click", () => {
+        // select answer attempt (visual only)
+        const all = $("frontOptions").querySelectorAll("button");
+        all.forEach(b => b.classList.remove("ring-2","ring-blue-400/60"));
+        div.classList.add("ring-2","ring-blue-400/60");
+      });
+      return div;
+    };
+
+    const escapeHtml = (s) =>
+      (s || "").toString()
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;");
+
+    const currentCard = () => filtered.length ? filtered[idx] : null;
+
+    const rebuildFilters = () => {
+      const q = $("qSearch").value.trim();
+      const year = $("qYear").value;
+      const area = $("qArea").value;
+
+      let cards = [...state.cards];
+
+      if (year !== "Todos") cards = cards.filter(c => (c.year||"").toString() === year);
+      if (area !== "Todos") cards = cards.filter(c => (c.area||"").toString() === area);
+
+      if (q) {
+        const nq = norm(q);
+        cards = cards.filter(c => {
+          const blob = [
+            c.title, c.prompt,
+            c.A, c.B, c.C, c.D, c.E,
+            c.answer, (c.tags||[]).join(", "),
+            c.explain
+          ].join(" || ");
+          return norm(blob).includes(nq);
         });
       }
 
-      const createdDeckIds = [];
-
-      const subjects = Object.keys(buckets);
-      subjects.sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-      for (const subj of subjects) {
-        const deckId = generateSimpleId("deck");
-        state.decks[deckId] = {
-          id: deckId,
-          name: `ENEM 2020 D1 — ${subj}`,
-          cards: buckets[subj]
-        };
-        state.deckOrder.push(deckId);
-        createdDeckIds.push(deckId);
-
-        state.difficultByDeck[deckId] = [];
-        ensureDeckStats(deckId);
+      if (onlyUnseen) {
+        const seen = new Set(session.seenIds || []);
+        cards = cards.filter(c => !seen.has(c.id));
       }
 
+      // review mode uses session errorIds (intersection with current filters)
+      if (mode === "review") {
+        const errs = new Set(session.errorIds || []);
+        cards = cards.filter(c => errs.has(c.id));
+      }
+
+      filtered = cards;
+
+      if (filtered.length === 0) idx = 0;
+      else idx = clamp(idx, 0, filtered.length - 1);
+
+      renderAllMeta();
+      renderCard();
+    };
+
+    const renderAllMeta = () => {
+      $("pillTotal").textContent = `Total: ${state.cards.length}`;
+      $("pillFiltered").textContent = `Filtrados: ${filtered.length}`;
+      $("pillIndex").textContent = `Card: ${filtered.length ? (idx+1) : 0}/${filtered.length}`;
+      $("pillFlip").textContent = flipped ? "Verso" : "Frente";
+
+      $("pillOk").textContent = `✅ Acertos: ${session.ok || 0}`;
+      $("pillBad").textContent = `❌ Erros: ${session.bad || 0}`;
+      const total = (session.ok||0) + (session.bad||0);
+      $("pillAcc").textContent = `🎯 Precisão: ${pct(session.ok||0, total)}%`;
+
+      $("pillSessionId").textContent = session.sessionId || "—";
+      $("pillErrCount").textContent = String((session.errorIds||[]).length);
+
+      const c = currentCard();
+      $("metaYear").textContent = `Ano: ${c ? (c.year||"—") : "—"}`;
+      $("metaArea").textContent = `Área: ${c ? (c.area||"—") : "—"}`;
+      $("metaId").textContent = `ID: ${c ? (c.id||"—") : "—"}`;
+
+      // buttons state
+      $("btnModeStudy").classList.toggle("btnPrimary", mode==="study");
+      $("btnModeReview").classList.toggle("btnPrimary", mode==="review");
+    };
+
+    const renderCard = () => {
+      const c = currentCard();
+      const has = !!c;
+
+      // flip state
+      $("flipCard").classList.toggle("isFlipped", flipped);
+
+      if (!has) {
+        $("frontTitle").textContent = "Nenhum card";
+        $("frontSubtitle").textContent = "Adicione cards em “Gerenciar cards”.";
+        $("frontPrompt").textContent = "—";
+        $("frontOptions").innerHTML = "";
+        $("backSubtitle").textContent = "—";
+        $("backAnswer").textContent = "—";
+        $("backExplain").textContent = "—";
+        $("backTags").innerHTML = "";
+        return;
+      }
+
+      $("frontTitle").textContent = c.title || "Questão";
+      $("frontSubtitle").textContent = `${c.area || "—"} • ${c.year || "—"}`;
+      $("frontPrompt").textContent = c.prompt || "—";
+
+      const optWrap = $("frontOptions");
+      optWrap.innerHTML = "";
+      optWrap.appendChild(makeOptionBtn("A", c.A));
+      optWrap.appendChild(makeOptionBtn("B", c.B));
+      optWrap.appendChild(makeOptionBtn("C", c.C));
+      optWrap.appendChild(makeOptionBtn("D", c.D));
+      optWrap.appendChild(makeOptionBtn("E", c.E));
+
+      $("backSubtitle").textContent = `${c.title || "Questão"} • ${c.area || "—"} • ${c.year || "—"}`;
+      $("backAnswer").textContent = (c.answer || "—").toUpperCase();
+      $("backExplain").textContent = c.explain || "—";
+
+      const tags = Array.isArray(c.tags) ? c.tags : [];
+      const tWrap = $("backTags");
+      tWrap.innerHTML = "";
+      if (tags.length === 0) {
+        const sp = document.createElement("span");
+        sp.className = "text-sm text-slate-300/80";
+        sp.textContent = "—";
+        tWrap.appendChild(sp);
+      } else {
+        tags.forEach(t => {
+          const p = document.createElement("span");
+          p.className = "pill";
+          p.textContent = t;
+          tWrap.appendChild(p);
+        });
+      }
+
+      // mark as seen
+      if (!session.seenIds.includes(c.id)) {
+        session.seenIds.push(c.id);
+        saveSession(session);
+      }
+
+      renderAllMeta();
+    };
+
+    const flip = () => {
+      flipped = !flipped;
+      renderAllMeta();
+      renderCard();
+    };
+
+    const go = (delta) => {
+      if (filtered.length === 0) return;
+      idx = (idx + delta + filtered.length) % filtered.length;
+      flipped = false;
+      renderAllMeta();
+      renderCard();
+    };
+
+    const mark = (isOk) => {
+      const c = currentCard();
+      if (!c) return;
+
+      if (isOk) session.ok = (session.ok||0) + 1;
+      else session.bad = (session.bad||0) + 1;
+
+      // add to error list if wrong
+      if (!isOk) {
+        const s = new Set(session.errorIds || []);
+        s.add(c.id);
+        session.errorIds = Array.from(s);
+      }
+
+      saveSession(session);
+      renderAllMeta();
+
+      toast(isOk ? "✅ Registrado: acerto" : "❌ Registrado: erro");
+
+      // auto next
+      flipped = false;
+      go(1);
+    };
+
+    const resetSessionStats = () => {
+      const oldId = session.sessionId;
+      session = defaultSession();
+      session.sessionId = oldId; // keep date label
+      saveSession(session);
+      mode = "study";
+      onlyUnseen = false;
+      flipped = false;
+      idx = 0;
+      toast("Sessão zerada ✅");
+      rebuildFilters();
+    };
+
+    const resetAll = () => {
+      if (!confirm("Isso vai apagar TODOS os cards e estatísticas. Confirmar?")) return;
+      state = defaultState();
+      session = defaultSession();
       saveState(state);
-    }
-  };
+      saveSession(session);
+      mode = "study";
+      onlyUnseen = false;
+      idx = 0;
+      flipped = false;
+      toast("Reset total concluído 🧨");
+      initUI();
+      rebuildFilters();
+    };
 
-  // #################################################
-  // 5) UI: popula seletor e carrega deck
-  // #################################################
-  const populateDeckSelector = () => {
-    const sel = $("deck-selector");
-    sel.innerHTML = "";
-
-    for (const deckId of state.deckOrder) {
-      const opt = document.createElement("option");
-      opt.value = deckId;
-      opt.textContent = state.decks[deckId]?.name || "Deck";
-      sel.appendChild(opt);
-    }
-
-    // mantém seleção
-    if (!currentDeckId) currentDeckId = state.deckOrder[0] || null;
-    sel.value = currentDeckId;
-  };
-
-  const buildSessionOrder = () => {
-    const deck = state.decks[currentDeckId];
-    if (!deck) { sessionOrder = []; return; }
-
-    const cards = deck.cards || [];
-    if (!reviewMode) {
-      sessionOrder = cards.map(c => c.id);
-      return;
-    }
-    const diff = getDifficultSet(currentDeckId);
-    sessionOrder = cards.filter(c => diff.has(c.id)).map(c => c.id);
-  };
-
-  const getCurrentCard = () => {
-    const deck = state.decks[currentDeckId];
-    if (!deck) return null;
-    const id = sessionOrder[currentCardIndex];
-    return (deck.cards || []).find(c => c.id === id) || null;
-  };
-
-  const updateHeader = () => {
-    const deck = state.decks[currentDeckId];
-    $("deck-title").textContent = deck ? deck.name : "";
-  };
-
-  const updateCounter = () => {
-    const total = sessionOrder.length;
-    const idx = total ? (currentCardIndex + 1) : 0;
-    $("card-counter").textContent = `${idx} / ${total}`;
-
-    $("prev-btn").disabled = currentCardIndex <= 0;
-    $("next-btn").disabled = currentCardIndex >= total - 1;
-  };
-
-  const updateProgress = () => {
-    const total = sessionOrder.length;
-    const idx = total ? (currentCardIndex + 1) : 0;
-    const pct = total ? Math.round((idx / total) * 100) : 0;
-
-    $("progress-container").setAttribute("aria-valuenow", String(pct));
-    $("progress-bar").style.width = `${pct}%`;
-    $("progress-text").textContent = total
-      ? `Progresso no deck: ${idx} de ${total} cards (${pct}%)`
-      : `Sem cards para mostrar neste modo.`;
-  };
-
-  const updateDifficultyIcon = () => {
-    const card = getCurrentCard();
-    const icon = $("difficulty-icon");
-    if (!card) {
-      icon.classList.remove("text-yellow-400");
-      icon.classList.add("text-gray-400");
-      return;
-    }
-    const diff = getDifficultSet(currentDeckId);
-    if (diff.has(card.id)) {
-      icon.classList.add("text-yellow-400");
-      icon.classList.remove("text-gray-400");
-    } else {
-      icon.classList.remove("text-yellow-400");
-      icon.classList.add("text-gray-400");
-    }
-  };
-
-  const setFlipped = (flip) => {
-    isFlipped = flip;
-    const inner = $("card-inner");
-    if (flip) inner.classList.add("flipped");
-    else inner.classList.remove("flipped");
-
-    // mostra botões de feedback só no verso
-    $("feedback-controls").classList.toggle("hidden", !flip);
-  };
-
-  const renderCard = () => {
-    const card = getCurrentCard();
-
-    if (!card) {
-      $("card-question").textContent = "Nenhum card disponível neste modo.\n\nDica: desative 'Revisar Difíceis' ou marque alguns cards como ⭐ difícil.";
-      $("card-answer").textContent = "—";
-      setFlipped(false);
-      updateCounter();
-      updateProgress();
-      updateDifficultyIcon();
-      updateReviewButton();
-      return;
-    }
-
-    $("card-question").textContent = card.question;
-    $("card-answer").textContent = stripAnswerPrefix(card.answer);
-
-    setFlipped(false);
-    updateCounter();
-    updateProgress();
-    updateDifficultyIcon();
-    updateReviewButton();
-  };
-
-  const loadDeck = () => {
-    currentDeckId = $("deck-selector").value;
-    currentCardIndex = 0;
-    reviewMode = false; // reset por padrão ao trocar de deck
-    buildSessionOrder();
-    updateHeader();
-    renderCard();
-  };
-
-  // #################################################
-  // 6) AÇÕES: navegar / flip / shuffle / restart
-  // #################################################
-  const flipCard = () => {
-    const card = getCurrentCard();
-    if (!card) return;
-    setFlipped(!isFlipped);
-  };
-
-  const nextCard = () => {
-    if (currentCardIndex < sessionOrder.length - 1) {
-      currentCardIndex++;
+    const shuffleFiltered = () => {
+      if (filtered.length < 2) return;
+      // Fisher-Yates on indices by shuffling array copy
+      const arr = [...filtered];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      filtered = arr;
+      idx = 0;
+      flipped = false;
+      toast("Embaralhado 🎲");
+      renderAllMeta();
       renderCard();
-    }
-  };
+    };
 
-  const prevCard = () => {
-    if (currentCardIndex > 0) {
-      currentCardIndex--;
+    /***********************
+     * Filters UI
+     ***********************/
+    const fillSelects = () => {
+      // year
+      const years = ["Todos", ...getAllYears()];
+      $("qYear").innerHTML = years.map(y => `<option value="${escapeHtml(y)}">${escapeHtml(y)}</option>`).join("");
+      // area
+      const areas = getAllAreas();
+      $("qArea").innerHTML = areas.map(a => `<option value="${escapeHtml(a)}">${escapeHtml(a)}</option>`).join("");
+    };
+
+    /***********************
+     * Manager Modal
+     ***********************/
+    const openManager = () => {
+      $("managerOverlay").classList.add("show");
+      $("managerOverlay").setAttribute("aria-hidden", "false");
+      refreshManagerList();
+      // if currently card exists, preload
+      const c = currentCard();
+      if (c) loadCardToForm(c);
+      else newCardForm();
+    };
+    const closeManager = () => {
+      $("managerOverlay").classList.remove("show");
+      $("managerOverlay").setAttribute("aria-hidden", "true");
+    };
+
+    const getFormCard = () => {
+      const tags = $("fTags").value.split(",").map(s => s.trim()).filter(Boolean);
+      return {
+        id: $("fId").value || uid(),
+        year: $("fYear").value.trim() || "",
+        area: $("fArea").value.trim() || "Geral",
+        title: $("fTitle").value.trim() || "Questão",
+        prompt: $("fPrompt").value.trim() || "",
+        A: $("fA").value.trim() || "",
+        B: $("fB").value.trim() || "",
+        C: $("fC").value.trim() || "",
+        D: $("fD").value.trim() || "",
+        E: $("fE").value.trim() || "",
+        answer: ($("fAnswer").value || "A").toUpperCase(),
+        explain: $("fExplain").value.trim() || "",
+        tags
+      };
+    };
+
+    const loadCardToForm = (c) => {
+      $("fId").value = c.id || "";
+      $("fYear").value = (c.year||"").toString();
+      $("fArea").value = c.area || "Geral";
+      $("fTitle").value = c.title || "";
+      $("fPrompt").value = c.prompt || "";
+      $("fA").value = c.A || "";
+      $("fB").value = c.B || "";
+      $("fC").value = c.C || "";
+      $("fD").value = c.D || "";
+      $("fE").value = c.E || "";
+      $("fAnswer").value = (c.answer||"A").toUpperCase();
+      $("fExplain").value = c.explain || "";
+      $("fTags").value = Array.isArray(c.tags) ? c.tags.join(", ") : "";
+    };
+
+    const newCardForm = () => {
+      $("fId").value = "";
+      $("fYear").value = new Date().getFullYear().toString();
+      $("fArea").value = "Geral";
+      $("fTitle").value = "";
+      $("fPrompt").value = "";
+      $("fA").value = "";
+      $("fB").value = "";
+      $("fC").value = "";
+      $("fD").value = "";
+      $("fE").value = "";
+      $("fAnswer").value = "A";
+      $("fExplain").value = "";
+      $("fTags").value = "";
+      toast("Novo card 🧾");
+    };
+
+    const saveCardFromForm = () => {
+      const c = getFormCard();
+
+      // minimal validation
+      if (!c.year || !c.area || !c.prompt || !c.A || !c.B || !c.C || !c.D || !c.E) {
+        toast("Preencha ano, área, enunciado e alternativas A–E.");
+        return;
+      }
+
+      const i = state.cards.findIndex(x => x.id === c.id);
+      if (i >= 0) state.cards[i] = c;
+      else state.cards.unshift(c);
+
+      saveState(state);
+      fillSelects();
+      refreshManagerList();
+
+      toast(i >= 0 ? "Card atualizado ✅" : "Card criado ✅");
+
+      // refresh view
+      rebuildFilters();
+      // set current to this card if exists in filtered
+      const fi = filtered.findIndex(x => x.id === c.id);
+      if (fi >= 0) idx = fi;
+      flipped = false;
+      renderAllMeta();
       renderCard();
+    };
+
+    const deleteCard = () => {
+      const id = $("fId").value;
+      if (!id) { toast("Nenhum card selecionado."); return; }
+      if (!confirm("Apagar este card?")) return;
+
+      state.cards = state.cards.filter(c => c.id !== id);
+      saveState(state);
+
+      // remove from session lists
+      session.seenIds = (session.seenIds||[]).filter(x => x !== id);
+      session.errorIds = (session.errorIds||[]).filter(x => x !== id);
+      saveSession(session);
+
+      fillSelects();
+      refreshManagerList();
+      toast("Card apagado 🗑️");
+
+      rebuildFilters();
+      newCardForm();
+    };
+
+    const refreshManagerList = () => {
+      const q = norm($("mgrSearch").value.trim());
+      const list = $("mgrList");
+      list.innerHTML = "";
+
+      let cards = [...state.cards];
+      if (q) {
+        cards = cards.filter(c => norm([c.title,c.prompt,c.area,c.year].join(" ")).includes(q));
+      }
+
+      $("mgrCount").textContent = String(cards.length);
+
+      if (cards.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "text-sm text-slate-300/80";
+        empty.textContent = "Sem cards ainda. Clique em “Inserir demo” ou crie o primeiro.";
+        list.appendChild(empty);
+        return;
+      }
+
+      cards.forEach(c => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "w-full text-left soft-border rounded-2xl p-3 bg-slate-950/10 hover:bg-slate-950/25 transition";
+        item.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div class="font-semibold text-sm">${escapeHtml(c.title || "Questão")}</div>
+            <div class="text-xs text-slate-300/70">${escapeHtml((c.year||"—")+" • "+(c.area||"—"))}</div>
+          </div>
+          <div class="text-xs text-slate-300/70 mt-1 line-clamp-2">${escapeHtml((c.prompt||"").slice(0,120))}${(c.prompt||"").length>120?"…":""}</div>
+        `;
+        item.addEventListener("click", () => loadCardToForm(c));
+        list.appendChild(item);
+      });
+    };
+
+    const seedDemo = () => {
+      const demo = [
+        {
+          id: uid(),
+          year: "2020",
+          area: "Humanas",
+          title: "Cidadania e Direitos — Demo 01",
+          prompt: "Texto-base (demo): Em sociedades democráticas, a cidadania envolve o conjunto de direitos e deveres que viabilizam a participação social e política.\n\nPergunta: Qual princípio sustenta a ampliação da cidadania no Estado democrático?",
+          A: "Subordinação das minorias ao interesse econômico.",
+          B: "Supressão de direitos sociais para reduzir custos.",
+          C: "Universalização de direitos e garantia de participação.",
+          D: "Restrição de acesso ao espaço público por renda.",
+          E: "Privatização total das políticas de assistência.",
+          answer: "C",
+          explain: "Cidadania se fortalece quando direitos são universalizados e a participação é garantida, ampliando inclusão e igualdade política.",
+          tags: ["cidadania","democracia","direitos"]
+        },
+        {
+          id: uid(),
+          year: "2020",
+          area: "Humanas",
+          title: "Questões Sociais e Minorias — Demo 02",
+          prompt: "Texto-base (demo): A desigualdade pode se expressar por barreiras sociais, econômicas e simbólicas que limitam oportunidades.\n\nPergunta: Uma política pública com foco em equidade busca:",
+          A: "Tratar todos igualmente, ignorando desigualdades históricas.",
+          B: "Compensar desvantagens estruturais para reduzir assimetrias.",
+          C: "Manter o status quo para preservar estabilidade.",
+          D: "Aumentar punições para resolver problemas sociais.",
+          E: "Restringir acesso a serviços para reduzir demanda.",
+          answer: "B",
+          explain: "Equidade considera desigualdades de partida e usa medidas compensatórias para reduzir assimetrias e garantir oportunidades.",
+          tags: ["desigualdade","equidade","minorias"]
+        },
+        {
+          id: uid(),
+          year: "2020",
+          area: "Linguagens",
+          title: "Interpretação — Demo 03",
+          prompt: "Texto-base (demo): Um anúncio utiliza humor e ironia para criticar um comportamento comum.\n\nPergunta: O efeito de sentido se constrói principalmente pela:",
+          A: "Denotação literal das palavras.",
+          B: "Repetição de termos técnicos.",
+          C: "Intertextualidade e quebra de expectativa.",
+          D: "Ausência total de conotação.",
+          E: "Neutralidade do ponto de vista do enunciador.",
+          answer: "C",
+          explain: "Humor/ironia frequentemente dependem de quebra de expectativa e relações intertextuais para produzir crítica.",
+          tags: ["interpretação","ironia","efeito de sentido"]
+        }
+      ];
+
+      state.cards = demo.concat(state.cards);
+      saveState(state);
+      fillSelects();
+      refreshManagerList();
+      rebuildFilters();
+      toast("Demo inserida ✨");
+    };
+
+    /***********************
+     * Export / Import JSON
+     ***********************/
+    const exportJSON = () => {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        app: "Flashcard Pro ENEM",
+        version: state.version,
+        cards: state.cards
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "flashcard_enem_cards.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast("Exportado ✅");
+    };
+
+    const importJSON = async (file) => {
+      try{
+        const text = await file.text();
+        const obj = safeJSON(text, null);
+        if (!obj || !Array.isArray(obj.cards)) {
+          toast("JSON inválido.");
+          return;
+        }
+        // merge by id
+        const map = new Map(state.cards.map(c => [c.id, c]));
+        obj.cards.forEach(c => {
+          if (!c.id) c.id = uid();
+          map.set(c.id, c);
+        });
+        state.cards = Array.from(map.values());
+        saveState(state);
+        fillSelects();
+        rebuildFilters();
+        toast("Importado ✅");
+      }catch(e){
+        toast("Falha ao importar.");
+      }
+    };
+
+    /***********************
+     * Export stats image
+     * (no libs) -> draw on canvas and download
+     ***********************/
+    const exportStatsImage = async () => {
+      const total = (session.ok||0) + (session.bad||0);
+      const acc = pct(session.ok||0, total);
+
+      // update capture node text
+      $("capSubtitle").textContent = `Sessão: ${session.sessionId || "—"}`;
+      $("capDate").textContent = new Date().toLocaleString("pt-BR");
+      const yf = $("qYear").value;
+      const af = $("qArea").value;
+      const sf = $("qSearch").value.trim();
+      $("capFilters").textContent = `Filtros: ${yf}/${af}${sf?` • busca: "${sf.slice(0,30)}${sf.length>30?"…":""}"`:""}`;
+      $("capOk").textContent = String(session.ok||0);
+      $("capBad").textContent = String(session.bad||0);
+      $("capAcc").textContent = `${acc}%`;
+      $("capFiltered").textContent = String(filtered.length);
+      $("capNotes").textContent = mode === "review"
+        ? "Modo: Revisão de erros (sessão)."
+        : "Modo: Estudo.";
+
+      // render captureNode to canvas (simple manual drawing)
+      // We'll create a canvas and paint the same info in a clean layout
+      const W = 1080, H = 610;
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      // background
+      const grad = ctx.createLinearGradient(0,0,0,H);
+      grad.addColorStop(0, "#0b1020");
+      grad.addColorStop(1, "#070a10");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0,0,W,H);
+
+      // glow
+      const glow1 = ctx.createRadialGradient(320,120,0, 320,120, 420);
+      glow1.addColorStop(0, "rgba(96,165,250,.22)");
+      glow1.addColorStop(1, "rgba(96,165,250,0)");
+      ctx.fillStyle = glow1;
+      ctx.fillRect(0,0,W,H);
+
+      const glow2 = ctx.createRadialGradient(860,120,0, 860,120, 420);
+      glow2.addColorStop(0, "rgba(34,197,94,.18)");
+      glow2.addColorStop(1, "rgba(34,197,94,0)");
+      ctx.fillStyle = glow2;
+      ctx.fillRect(0,0,W,H);
+
+      // panel
+      roundRect(ctx, 40, 40, W-80, H-80, 22, "rgba(15,23,42,.75)", "rgba(148,163,184,.20)");
+
+      // header left icon
+      roundRect(ctx, 70, 70, 56, 56, 18, "rgba(2,6,23,.35)", "rgba(148,163,184,.22)");
+      ctx.font = "30px ui-sans-serif, system-ui, -apple-system";
+      ctx.fillStyle = "#e5e7eb";
+      ctx.fillText("🧠", 85, 109);
+
+      // title
+      ctx.font = "700 28px ui-sans-serif, system-ui, -apple-system";
+      ctx.fillStyle = "#e5e7eb";
+      ctx.fillText("Flashcard Pro ENEM — Resultado", 140, 97);
+
+      ctx.font = "14px ui-sans-serif, system-ui, -apple-system";
+      ctx.fillStyle = "rgba(226,232,240,.78)";
+      ctx.fillText(`Sessão: ${session.sessionId || "—"} • ${mode === "review" ? "Revisão de erros" : "Estudo"}`, 140, 120);
+
+      // right info
+      ctx.textAlign = "right";
+      ctx.fillStyle = "rgba(226,232,240,.70)";
+      ctx.fillText(new Date().toLocaleString("pt-BR"), W-70, 97);
+      ctx.fillText(`Ano/Área: ${yf}/${af}`, W-70, 120);
+      ctx.textAlign = "left";
+
+      // stat boxes
+      const boxY = 170, boxH = 120, gap = 18;
+      const boxW = (W - 80 - 70 - 70 - gap*3) / 4; // inside panel margins
+      const startX = 70;
+      const boxes = [
+        {label:"Acertos", value:String(session.ok||0)},
+        {label:"Erros", value:String(session.bad||0)},
+        {label:"Precisão", value:`${acc}%`},
+        {label:"Cards filtrados", value:String(filtered.length)},
+      ];
+      boxes.forEach((b, i) => {
+        const x = startX + i*(boxW + gap);
+        roundRect(ctx, x, boxY, boxW, boxH, 18, "rgba(2,6,23,.25)", "rgba(148,163,184,.22)");
+        ctx.font = "13px ui-sans-serif, system-ui, -apple-system";
+        ctx.fillStyle = "rgba(226,232,240,.70)";
+        ctx.fillText(b.label, x+18, boxY+34);
+        ctx.font = "800 46px ui-sans-serif, system-ui, -apple-system";
+        ctx.fillStyle = "#e5e7eb";
+        ctx.fillText(b.value, x+18, boxY+88);
+      });
+
+      // notes box
+      roundRect(ctx, 70, 320, W-140, 210, 18, "rgba(2,6,23,.25)", "rgba(148,163,184,.22)");
+      ctx.font = "13px ui-sans-serif, system-ui, -apple-system";
+      ctx.fillStyle = "rgba(226,232,240,.70)";
+      ctx.fillText("Notas", 88, 350);
+
+      ctx.font = "16px ui-sans-serif, system-ui, -apple-system";
+      ctx.fillStyle = "rgba(226,232,240,.92)";
+      const notes = sf
+        ? `Filtros ativos: ${yf}/${af}. Busca: "${sf}".`
+        : `Filtros ativos: ${yf}/${af}.`;
+      const notes2 = "Imagem gerada dentro do Flashcard Pro ENEM.";
+      wrapText(ctx, `${notes}\n${notes2}`, 88, 382, W-176, 24);
+
+      // download
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `flashcard_resultado_${(session.sessionId||"sessao").replaceAll("/","-")}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      toast("Imagem exportada 🖼️");
+    };
+
+    function roundRect(ctx, x, y, w, h, r, fill, stroke){
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.arcTo(x+w, y, x+w, y+h, r);
+      ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r);
+      ctx.arcTo(x, y, x+w, y, r);
+      ctx.closePath();
+      if (fill){
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      if (stroke){
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     }
-  };
 
-  const shuffleDeck = () => {
-    // embaralha apenas a ordem da sessão
-    for (let i = sessionOrder.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [sessionOrder[i], sessionOrder[j]] = [sessionOrder[j], sessionOrder[i]];
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight){
+      const lines = text.split("\n");
+      let yy = y;
+      for (const ln of lines){
+        const words = ln.split(" ");
+        let line = "";
+        for (let n = 0; n < words.length; n++){
+          const testLine = line + words[n] + " ";
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && n > 0){
+            ctx.fillText(line, x, yy);
+            line = words[n] + " ";
+            yy += lineHeight;
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line, x, yy);
+        yy += lineHeight;
+      }
     }
-    currentCardIndex = 0;
-    renderCard();
-  };
-
-  const restartDeck = () => {
-    currentCardIndex = 0;
-    renderCard();
-  };
-
-  // #################################################
-  // 7) MARCAÇÕES: difícil / acertei / errei
-  // #################################################
-  const markCardDifficult = () => {
-    const card = getCurrentCard();
-    if (!card) return;
-
-    const setObj = getDifficultSet(currentDeckId);
-    if (setObj.has(card.id)) setObj.delete(card.id);
-    else setObj.add(card.id);
-
-    setDifficultSet(currentDeckId, setObj);
-    saveState(state);
-
-    updateDifficultyIcon();
-    updateReviewButton();
-    updateStatsModalUI();
-  };
-
-  const markCorrect = () => {
-    const card = getCurrentCard();
-    if (!card) return;
-
-    state.stats.totalReviewed++;
-    ensureDeckStats(currentDeckId);
-    state.stats.byDeck[currentDeckId].reviewed++;
-    state.stats.byDeck[currentDeckId].correct++;
-    saveState(state);
-
-    setFlipped(false);
-    nextCard();
-    updateStatsModalUI();
-  };
-
-  const markIncorrect = () => {
-    const card = getCurrentCard();
-    if (!card) return;
-
-    state.stats.totalReviewed++;
-    ensureDeckStats(currentDeckId);
-    state.stats.byDeck[currentDeckId].reviewed++;
-    state.stats.byDeck[currentDeckId].incorrect++;
-    saveState(state);
-
-    setFlipped(false);
-    nextCard();
-    updateStatsModalUI();
-  };
-
-  // #################################################
-  // 8) REVIEW MODE (difíceis)
-  // #################################################
-  const updateReviewButton = () => {
-    const diffCount = (state.difficultByDeck[currentDeckId] || []).length;
-    const btn = $("review-mode-btn");
-    btn.textContent = reviewMode ? `✅ Revisando Difíceis (${diffCount})` : `⭐ Revisar Difíceis (${diffCount})`;
-    btn.classList.toggle("bg-red-600", !reviewMode);
-    btn.classList.toggle("bg-green-700", reviewMode);
-  };
-
-  const toggleReviewMode = () => {
-    reviewMode = !reviewMode;
-    currentCardIndex = 0;
-    buildSessionOrder();
-    renderCard();
-  };
-
-  // #################################################
-  // 9) MODAL: GERENCIAR DECKS / CARDS
-  // #################################################
-  let managingDeckId = null;
-
-  const openManageModal = () => {
-    $("manage-modal").classList.remove("hidden");
-    $("manage-modal").classList.add("flex");
-    renderDeckList();
-    selectDeckForManagement(currentDeckId);
-  };
-
-  const closeManageModal = () => {
-    $("manage-modal").classList.add("hidden");
-    $("manage-modal").classList.remove("flex");
-    resetCardEditor();
-  };
-
-  const renderDeckList = () => {
-    const wrap = $("deck-list");
-    wrap.innerHTML = "";
-
-    for (const deckId of state.deckOrder) {
-      const d = state.decks[deckId];
-      const row = document.createElement("div");
-      row.className = "flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg px-3 py-2";
-
-      const left = document.createElement("button");
-      left.className = "text-left flex-grow";
-      left.innerHTML = `<div class="font-semibold text-white">${d.name}</div><div class="text-xs text-gray-400">${(d.cards||[]).length} cards</div>`;
-      left.onclick = () => selectDeckForManagement(deckId);
-
-      const del = document.createElement("button");
-      del.className = "text-red-300 hover:text-red-200 text-sm font-semibold px-2 py-1";
-      del.textContent = "Excluir";
-      del.onclick = () => deleteDeck(deckId);
-
-      row.appendChild(left);
-      row.appendChild(del);
-      wrap.appendChild(row);
-    }
-  };
-
-  const createDeck = () => {
-    const name = $("new-deck-name").value.trim();
-    if (!name) return;
-
-    const deckId = generateSimpleId("deck");
-    state.decks[deckId] = { id: deckId, name, cards: [] };
-    state.deckOrder.push(deckId);
-    state.difficultByDeck[deckId] = [];
-    ensureDeckStats(deckId);
-
-    $("new-deck-name").value = "";
-    saveState(state);
-
-    populateDeckSelector();
-    renderDeckList();
-    selectDeckForManagement(deckId);
-  };
-
-  const deleteDeck = (deckId) => {
-    if (state.deckOrder.length <= 1) {
-      alert("Você precisa manter pelo menos 1 deck.");
-      return;
-    }
-    if (!confirm("Excluir este deck? (cards serão perdidos)")) return;
-
-    delete state.decks[deckId];
-    delete state.difficultByDeck[deckId];
-    delete state.stats.byDeck[deckId];
-
-    state.deckOrder = state.deckOrder.filter(id => id !== deckId);
-
-    // se deletou o deck atual, troca
-    if (currentDeckId === deckId) currentDeckId = state.deckOrder[0];
-
-    saveState(state);
-
-    populateDeckSelector();
-    buildSessionOrder();
-    updateHeader();
-    renderCard();
-
-    renderDeckList();
-    selectDeckForManagement(currentDeckId);
-  };
-
-  const selectDeckForManagement = (deckId) => {
-    managingDeckId = deckId;
-    const d = state.decks[deckId];
-    $("card-management-title").textContent = `Cards do Deck: ${d ? d.name : "(Nenhum Selecionado)"}`;
-    $("add-card-btn").classList.toggle("hidden", !d);
-    renderCardList();
-  };
-
-  const openCardEditor = () => {
-    $("card-editor-form").classList.remove("hidden");
-    $("card-id-editor").value = "";
-    $("card-question-editor").value = "";
-    $("card-answer-editor").value = "";
-  };
-
-  const resetCardEditor = () => {
-    $("card-editor-form").classList.add("hidden");
-    $("card-id-editor").value = "";
-    $("card-question-editor").value = "";
-    $("card-answer-editor").value = "";
-  };
-
-  const saveCard = () => {
-    const deck = state.decks[managingDeckId];
-    if (!deck) return;
-
-    const id = $("card-id-editor").value || generateSimpleId("card");
-    const q = $("card-question-editor").value.trim();
-    const a = $("card-answer-editor").value.trim();
-    if (!q || !a) return;
-
-    const idx = (deck.cards || []).findIndex(c => c.id === id);
-    if (idx >= 0) deck.cards[idx] = { id, question: q, answer: a };
-    else deck.cards.push({ id, question: q, answer: a });
-
-    saveState(state);
-    renderDeckList();
-    renderCardList();
-    resetCardEditor();
-
-    // se salvou no deck atual, recarrega sessão
-    if (managingDeckId === currentDeckId) {
-      buildSessionOrder();
-      renderCard();
-    }
-  };
-
-  const editCard = (cardId) => {
-    const deck = state.decks[managingDeckId];
-    if (!deck) return;
-    const c = (deck.cards || []).find(x => x.id === cardId);
-    if (!c) return;
-
-    $("card-editor-form").classList.remove("hidden");
-    $("card-id-editor").value = c.id;
-    $("card-question-editor").value = c.question;
-    $("card-answer-editor").value = c.answer;
-  };
-
-  const deleteCard = (cardId) => {
-    const deck = state.decks[managingDeckId];
-    if (!deck) return;
-    if (!confirm("Excluir este card?")) return;
-
-    deck.cards = (deck.cards || []).filter(c => c.id !== cardId);
-
-    // remove dos difíceis se necessário
-    const diff = getDifficultSet(managingDeckId);
-    diff.delete(cardId);
-    setDifficultSet(managingDeckId, diff);
-
-    saveState(state);
-    renderDeckList();
-    renderCardList();
-
-    if (managingDeckId === currentDeckId) {
-      buildSessionOrder();
-      currentCardIndex = Math.min(currentCardIndex, Math.max(0, sessionOrder.length - 1));
-      renderCard();
-    }
-  };
-
-  const renderCardList = () => {
-    const deck = state.decks[managingDeckId];
-    const wrap = $("card-list");
-    wrap.innerHTML = "";
-
-    if (!deck) return;
-
-    for (const c of (deck.cards || [])) {
-      const row = document.createElement("div");
-      row.className = "flex items-center justify-between bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 gap-2";
-
-      const left = document.createElement("button");
-      left.className = "text-left flex-grow";
-      left.innerHTML = `<div class="font-semibold text-white truncate">${c.question.split("\n")[0].slice(0, 90)}</div><div class="text-xs text-gray-400 truncate">${stripAnswerPrefix(c.answer).slice(0, 110)}</div>`;
-      left.onclick = () => editCard(c.id);
-
-      const del = document.createElement("button");
-      del.className = "text-red-300 hover:text-red-200 text-sm font-semibold px-2 py-1";
-      del.textContent = "Excluir";
-      del.onclick = () => deleteCard(c.id);
-
-      row.appendChild(left);
-      row.appendChild(del);
-      wrap.appendChild(row);
-    }
-  };
-
-  // #################################################
-  // 10) MODAL: STATS + EXPORT PNG
-  // #################################################
-  const openStatsModal = () => {
-    updateStatsModalUI();
-    $("stats-modal").classList.remove("hidden");
-    $("stats-modal").classList.add("flex");
-  };
-
-  const closeStatsModal = () => {
-    $("stats-modal").classList.add("hidden");
-    $("stats-modal").classList.remove("flex");
-  };
-
-  const updateStatsModalUI = () => {
-    $("total-reviewed-stats").textContent = String(state.stats.totalReviewed || 0);
-
-    const diffCount = (state.difficultByDeck[currentDeckId] || []).length;
-    $("total-difficult-stats").textContent = String(diffCount);
-
-    const ul = $("deck-stats-list");
-    ul.innerHTML = "";
-
-    for (const deckId of state.deckOrder) {
-      ensureDeckStats(deckId);
-      const d = state.decks[deckId];
-      const s = state.stats.byDeck[deckId];
-      const li = document.createElement("li");
-      li.textContent = `${d.name}: revisados ${s.reviewed} | 🟢 ${s.correct} | 🔴 ${s.incorrect}`;
-      ul.appendChild(li);
-    }
-  };
-
-  const exportStatsPNG = async () => {
-    const node = $("stats-capture");
-    const canvas = await html2canvas(node, { backgroundColor: null, scale: 2 });
-    const link = document.createElement("a");
-    link.download = "estatisticas-flashcard-pro-enem.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-  };
-
-  const resetStats = () => {
-    if (!confirm("Resetar estatísticas?")) return;
-    state.stats.totalReviewed = 0;
-    state.stats.byDeck = {};
-    for (const deckId of state.deckOrder) ensureDeckStats(deckId);
-    saveState(state);
-    updateStatsModalUI();
-  };
-
-  // #################################################
-  // 11) TECLADO / ACESSIBILIDADE
-  // #################################################
-  const onKeyDown = (e) => {
-    if (e.code === "Space") {
-      e.preventDefault();
-      flipCard();
-    }
-    if (e.code === "ArrowRight") nextCard();
-    if (e.code === "ArrowLeft") prevCard();
-  };
-
-  // #################################################
-  // 12) EVENTOS GLOBAIS (expõe funções pro HTML)
-  // #################################################
-  window.openManageModal = openManageModal;
-  window.closeManageModal = closeManageModal;
-  window.openStatsModal = openStatsModal;
-  window.closeStatsModal = closeStatsModal;
-
-  window.createDeck = createDeck;
-  window.loadDeck = loadDeck;
-  window.openCardEditor = openCardEditor;
-  window.saveCard = saveCard;
-  window.resetCardEditor = resetCardEditor;
-
-  window.prevCard = prevCard;
-  window.nextCard = nextCard;
-  window.shuffleDeck = shuffleDeck;
-  window.restartDeck = restartDeck;
-
-  window.markCardDifficult = markCardDifficult;
-  window.markCorrect = markCorrect;
-  window.markIncorrect = markIncorrect;
-  window.toggleReviewMode = toggleReviewMode;
-
-  window.exportStatsPNG = exportStatsPNG;
-  window.resetStats = resetStats;
-
-  // #################################################
-  // 13) INIT
-  // #################################################
-  document.addEventListener("DOMContentLoaded", () => {
-    bootstrapIfNeeded();
-
-    populateDeckSelector();
-    buildSessionOrder();
-    updateHeader();
-    renderCard();
-    updateStatsModalUI();
-
-    $("flashcard-container").addEventListener("click", () => flipCard());
-    document.addEventListener("keydown", onKeyDown);
-  });
-</script>
+
+    /***********************
+     * Init
+     ***********************/
+    const initUI = () => {
+      fillSelects();
+      $("qYear").value = "Todos";
+      $("qArea").value = "Todos";
+      $("qSearch").value = "";
+      $("mgrSearch").value = "";
+
+      renderAllMeta();
+      rebuildFilters();
+    };
+
+    /***********************
+     * Wire events
+     ***********************/
+    // Top buttons
+    $("btnOpenManager").addEventListener("click", openManager);
+    $("btnCloseManager").addEventListener("click", closeManager);
+    $("managerOverlay").addEventListener("click", (e)=>{ if(e.target.id==="managerOverlay") closeManager(); });
+
+    $("btnExportJson").addEventListener("click", exportJSON);
+    $("fileImport").addEventListener("change", (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if (file) importJSON(file);
+      e.target.value = "";
+    });
+
+    $("btnResetSession").addEventListener("click", ()=> {
+      if (!confirm("Zerar acertos/erros e listas da sessão? (não apaga cards)")) return;
+      resetSessionStats();
+    });
+
+    $("btnResetAll").addEventListener("click", resetAll);
+
+    // Filters
+    $("qSearch").addEventListener("input", ()=> { idx=0; flipped=false; rebuildFilters(); });
+    $("qYear").addEventListener("change", ()=> { idx=0; flipped=false; rebuildFilters(); });
+    $("qArea").addEventListener("change", ()=> { idx=0; flipped=false; rebuildFilters(); });
+
+    // Mode
+    $("btnModeStudy").addEventListener("click", ()=> { mode="study"; idx=0; flipped=false; rebuildFilters(); toast("Modo: Estudo"); });
+    $("btnModeReview").addEventListener("click", ()=> { mode="review"; idx=0; flipped=false; rebuildFilters(); toast("Modo: Revisão de erros"); });
+
+    // Navigation
+    $("btnPrev").addEventListener("click", ()=> go(-1));
+    $("btnNext").addEventListener("click", ()=> go(1));
+    $("btnFlip").addEventListener("click", flip);
+    $("btnShuffle").addEventListener("click", shuffleFiltered);
+
+    // Quick panel
+    $("btnGoFirst").addEventListener("click", ()=>{ idx=0; flipped=false; renderAllMeta(); renderCard(); });
+    $("btnGoLast").addEventListener("click", ()=>{ idx=Math.max(0, filtered.length-1); flipped=false; renderAllMeta(); renderCard(); });
+
+    $("btnOnlyUnseen").addEventListener("click", ()=>{
+      onlyUnseen = !onlyUnseen;
+      toast(onlyUnseen ? "Filtro: só não vistos 👀" : "Filtro: todos");
+      idx=0; flipped=false;
+      rebuildFilters();
+      $("btnOnlyUnseen").classList.toggle("btnPrimary", onlyUnseen);
+    });
+
+    $("btnClearFilter").addEventListener("click", ()=>{
+      onlyUnseen = false;
+      $("btnOnlyUnseen").classList.remove("btnPrimary");
+      $("qYear").value = "Todos";
+      $("qArea").value = "Todos";
+      $("qSearch").value = "";
+      idx=0; flipped=false;
+      mode="study";
+      toast("Filtros limpos 🧹");
+      rebuildFilters();
+    });
+
+    $("btnStartErrorReview").addEventListener("click", ()=>{
+      mode="review";
+      idx=0; flipped=false;
+      rebuildFilters();
+      toast("Revisão iniciada 🧪");
+    });
+
+    $("btnClearErrors").addEventListener("click", ()=>{
+      if (!confirm("Limpar lista de erros da sessão?")) return;
+      session.errorIds = [];
+      saveSession(session);
+      toast("Erros limpos ✅");
+      rebuildFilters();
+    });
+
+    // Mark
+    $("btnMarkOk").addEventListener("click", ()=> mark(true));
+    $("btnMarkBad").addEventListener("click", ()=> mark(false));
+    $("btnMarkOk2").addEventListener("click", ()=> mark(true));
+    $("btnMarkBad2").addEventListener("click", ()=> mark(false));
+
+    // Edit current from back
+    $("btnEditCurrent").addEventListener("click", ()=>{
+      const c = currentCard();
+      if (!c) return;
+      openManager();
+      loadCardToForm(c);
+      toast("Editando card ✏️");
+    });
+
+    // Manager form
+    $("btnNewCard").addEventListener("click", newCardForm);
+    $("btnSaveCard").addEventListener("click", saveCardFromForm);
+    $("btnDeleteCard").addEventListener("click", deleteCard);
+    $("btnSeedDemo").addEventListener("click", seedDemo);
+    $("mgrSearch").addEventListener("input", refreshManagerList);
+
+    // Export stats image
+    $("btnExportStatsImage").addEventListener("click", exportStatsImage);
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", (e)=>{
+      // ignore if typing
+      const tag = (document.activeElement && document.activeElement.tagName) || "";
+      const isTyping = ["INPUT","TEXTAREA","SELECT"].includes(tag);
+      if (isTyping) return;
+
+      if (e.code === "Space") { e.preventDefault(); flip(); }
+      if (e.key === "ArrowLeft") go(-1);
+      if (e.key === "ArrowRight") go(1);
+
+      if (e.key.toLowerCase() === "r") {
+        // quick reset session (no confirm)
+        resetSessionStats();
+      }
+    });
+
+    // Close modal on ESC
+    document.addEventListener("keydown", (e)=>{
+      if (e.key === "Escape" && $("managerOverlay").classList.contains("show")) closeManager();
+    });
+
+    // Boot
+    initUI();
+    rebuildFilters();
+  </script>
+</body>
+</html>
