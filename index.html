@@ -40,7 +40,7 @@
       justify-content: center;
       align-items: flex-start;
       padding: 20px;
-      padding-bottom: 100px; /* Previne que o conteúdo seja escondido pelo botão flutuante */
+      padding-bottom: 100px; /* Espaço para não cobrir nada no final */
       overflow-x: hidden;
     }
 
@@ -145,11 +145,39 @@
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 13px;
       font-weight: 700;
       color: var(--muted);
       flex-shrink: 0;
     }
+
+    .timer-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #uiTimer {
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .btn-timer {
+      background: rgba(96,165,250,.15);
+      border: 1px solid var(--accent);
+      color: var(--txt);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-timer:active { transform: scale(0.95); }
 
     .card-body {
       padding: 24px 20px;
@@ -232,7 +260,7 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Controles (Anterior, Próximo, Difícil) */
+    /* Controles Base */
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -273,19 +301,17 @@
     .btn.hard { border-color: rgba(245,158,11,.4); color: #fbbf24; }
     .btn.hard.active { background: rgba(245,158,11,.2); border-color: var(--hard); }
 
-    /* Botão Flutuante (Mostrar Resposta) */
+    /* Botão Flutuante (Ajustado p/ Canto Direito Inferior) */
     .floating-btn {
       position: fixed;
       bottom: 25px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 20px;
       z-index: 100;
-      width: 90%;
-      max-width: 350px;
+      width: auto;
       box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(96,165,250,0.25);
-      font-size: 16px;
-      padding: 16px 20px;
-      border-radius: 50px; /* Formato pílula */
+      font-size: 14px;
+      padding: 14px 20px;
+      border-radius: 50px; 
       background: rgba(30, 58, 138, 0.95);
       backdrop-filter: blur(5px);
     }
@@ -328,11 +354,13 @@
       margin-bottom: 20px;
     }
 
-    /* Timer visual no card */
-    #uiTimer {
-      color: var(--accent);
-      font-family: monospace;
-      font-size: 14px;
+    #exportCanvasTarget {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -9999;
+      opacity: 0;
+      pointer-events: none;
     }
 
   </style>
@@ -361,7 +389,11 @@
 
     <div class="flashcard">
       <div class="card-header">
-        <span><b id="uiCardId">ID: —</b> • <span id="uiTimer">⏱️ 00:00</span></span>
+        <div class="timer-container">
+            <b id="uiCardId">ID: —</b> 
+            <button id="btnStartTimer" class="btn-timer">▶ Iniciar</button>
+            <span id="uiTimer">⏱️ --:--</span>
+        </div>
         <span id="uiCardSide">Frente (Pergunta)</span>
       </div>
       
@@ -1308,7 +1340,7 @@
             "demarcação de terras públicas.",
             "imposição da escravidão por dívidas.",
             "restrição da cidadania por parentesco.",
-            "restauração de institutions ancestrais.",
+            "restauração de instituições ancestrais.",
             "expansão das fronteiras extrapeninsulares."
           ],
           answer: "E"
@@ -1567,9 +1599,10 @@
     let selectedAnswer = null; 
     
     let userAnswers = {}; 
-    let cardTimers = {}; // Guarda o tempo gasto em cada card (em segundos)
-    let currentCardStartTime = 0; // Marca quando o card foi aberto
-    let timerInterval = null; // Controla o relógio visual
+    let cardTimers = {}; 
+    let currentCardStartTime = 0; 
+    let timerInterval = null; 
+    let isTimerRunning = false; // Novo: controla se o botão de Iniciar foi apertado
 
     let reviewedCards = new Set();
     let hardCards = new Set();
@@ -1590,6 +1623,7 @@
       uiProgressBar: document.getElementById('uiProgressBar'),
       
       uiCardId: document.getElementById('uiCardId'),
+      btnStartTimer: document.getElementById('btnStartTimer'),
       uiTimer: document.getElementById('uiTimer'),
       uiCardSide: document.getElementById('uiCardSide'),
       uiCardContent: document.getElementById('uiCardContent'),
@@ -1612,6 +1646,7 @@
        3. LÓGICA DE NAVEGAÇÃO E RENDERIZAÇÃO
        ========================================================= */
     function formatTime(secs) {
+        if (secs === undefined || secs === null) return "--:--";
         let m = Math.floor(secs / 60).toString().padStart(2, '0');
         let s = (secs % 60).toString().padStart(2, '0');
         return `${m}:${s}`;
@@ -1642,6 +1677,7 @@
       els.btnRestart.addEventListener('click', resetSessionCompleta);
       els.btnReviewHards.addEventListener('click', startHardReview);
       els.btnExport.addEventListener('click', exportResultPNG);
+      els.btnStartTimer.addEventListener('click', startTimer);
       els.btnCloseModal.addEventListener('click', () => els.exportModal.classList.add('hidden'));
 
       document.addEventListener('keydown', (e) => {
@@ -1681,16 +1717,44 @@
       selectedAnswer = null;
     }
 
+    // Cronômetro Manual
+    function startTimer() {
+        if (isTimerRunning || deckCards.length === 0) return;
+        const card = deckCards[currentIndex];
+        
+        // Se já respondeu antes, não faz nada
+        if (cardTimers[card.id] !== undefined) return; 
+
+        isTimerRunning = true;
+        currentCardStartTime = Date.now();
+        els.btnStartTimer.style.display = "none";
+        
+        timerInterval = setInterval(() => {
+            let elapsed = Math.floor((Date.now() - currentCardStartTime) / 1000);
+            els.uiTimer.textContent = `⏱️ ${formatTime(elapsed)}`;
+        }, 1000);
+    }
+
+    // Congela cronômetro
+    function freezeTimerIfNeeded(cardId) {
+        if (cardTimers[cardId] === undefined) {
+            if (isTimerRunning) {
+                cardTimers[cardId] = Math.floor((Date.now() - currentCardStartTime) / 1000);
+            } else {
+                cardTimers[cardId] = 0; // Se clicou sem iniciar, registra 00:00 (evita ruído)
+            }
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            els.btnStartTimer.style.display = "none";
+            els.uiTimer.textContent = `⏱️ ${formatTime(cardTimers[cardId])}`;
+        }
+    }
+
     window.selectAlt = function(letter) {
       if (isFlipped) return; 
-      
       const card = deckCards[currentIndex];
-      // Congela o cronômetro no primeiro clique na alternativa
-      if (cardTimers[card.id] === undefined) {
-          cardTimers[card.id] = Math.floor((Date.now() - currentCardStartTime) / 1000);
-          clearInterval(timerInterval);
-          els.uiTimer.textContent = `⏱️ ${formatTime(cardTimers[card.id])}`;
-      }
+      
+      freezeTimerIfNeeded(card.id);
 
       selectedAnswer = letter;
       renderCard();
@@ -1701,6 +1765,7 @@
         els.uiCardContent.innerHTML = "Nenhum card disponível neste deck/seleção.";
         els.uiCardId.textContent = "—";
         els.uiTimer.textContent = "⏱️ 00:00";
+        els.btnStartTimer.style.display = "none";
         updateProgress();
         clearInterval(timerInterval);
         return;
@@ -1712,22 +1777,20 @@
           selectedAnswer = userAnswers[card.id].selected;
       }
 
-      // == LÓGICA DO CRONÔMETRO ==
+      // UI do Cronômetro
       clearInterval(timerInterval);
+      isTimerRunning = false;
       if (cardTimers[card.id] !== undefined) {
-          // Se já resolveu antes, mostra o tempo salvo
+          // Já resolvido
           els.uiTimer.textContent = `⏱️ ${formatTime(cardTimers[card.id])}`;
+          els.btnStartTimer.style.display = "none";
       } else {
-          // Inicia novo cronômetro se nunca foi respondida
-          currentCardStartTime = Date.now();
-          els.uiTimer.textContent = `⏱️ 00:00`;
-          timerInterval = setInterval(() => {
-              let elapsed = Math.floor((Date.now() - currentCardStartTime) / 1000);
-              els.uiTimer.textContent = `⏱️ ${formatTime(elapsed)}`;
-          }, 1000);
+          // Não resolvido ainda
+          els.uiTimer.textContent = `⏱️ --:--`;
+          els.btnStartTimer.style.display = "inline-flex";
       }
 
-      els.uiCardId.textContent = `Card: ${card.id}`;
+      els.uiCardId.textContent = `ID: ${card.id}`;
       els.btnHard.classList.toggle('active', hardCards.has(card.id));
 
       els.uiCardSide.textContent = isFlipped ? "Verso (Resposta)" : "Frente (Pergunta)";
@@ -1779,11 +1842,7 @@
       if (deckCards.length === 0) return;
       const card = deckCards[currentIndex];
 
-      // Se o cara virar a carta sem clicar em nenhuma alternativa antes, congela o tempo agora.
-      if (cardTimers[card.id] === undefined) {
-          cardTimers[card.id] = Math.floor((Date.now() - currentCardStartTime) / 1000);
-          clearInterval(timerInterval);
-      }
+      freezeTimerIfNeeded(card.id);
 
       if (!isFlipped && !userAnswers[card.id]) {
         if (selectedAnswer) {
@@ -1864,7 +1923,7 @@
     }
 
     /* =========================================================
-       4. EXPORTAÇÃO ESTRUTURADA (COM INDICADOR DE TEMPO)
+       4. EXPORTAÇÃO ESTRUTURADA
        ========================================================= */
     async function exportResultPNG() {
       if (reviewedCards.size === 0) {
@@ -1946,8 +2005,7 @@
             }
         }
 
-        // Lógica de resgatar o tempo
-        let timeStr = cardTimers[item.data.id] !== undefined ? formatTime(cardTimers[item.data.id]) : '--:--';
+        let timeStr = cardTimers[item.data.id] !== undefined ? formatTime(cardTimers[item.data.id]) : '00:00';
         let timeBadge = `<span style="color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); padding: 2px 8px; border-radius: 12px; margin-left: 10px;">⏱️ ${timeStr}</span>`;
 
         htmlContent += `
