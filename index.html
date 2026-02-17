@@ -40,6 +40,7 @@
       justify-content: center;
       align-items: flex-start;
       padding: 20px;
+      padding-bottom: 100px; /* Previne que o conteúdo seja escondido pelo botão flutuante */
       overflow-x: hidden;
     }
 
@@ -231,7 +232,7 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* Controles */
+    /* Controles (Anterior, Próximo, Difícil) */
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -263,16 +264,31 @@
       text-align: center;
     }
 
-    .btn-main { flex-basis: 100%; }
-
     .btn:hover { background: rgba(255,255,255,.1); }
     .btn:active { transform: translateY(2px); }
-    
+
     .btn.primary { background: rgba(96,165,250,.15); border-color: var(--accent); color: var(--accent); }
     .btn.primary:hover { background: rgba(96,165,250,.25); }
 
     .btn.hard { border-color: rgba(245,158,11,.4); color: #fbbf24; }
     .btn.hard.active { background: rgba(245,158,11,.2); border-color: var(--hard); }
+
+    /* Botão Flutuante (Mostrar Resposta) */
+    .floating-btn {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      width: 90%;
+      max-width: 350px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(96,165,250,0.25);
+      font-size: 16px;
+      padding: 16px 20px;
+      border-radius: 50px; /* Formato pílula */
+      background: rgba(30, 58, 138, 0.95);
+      backdrop-filter: blur(5px);
+    }
 
     .utility-bar {
       display: flex;
@@ -312,6 +328,13 @@
       margin-bottom: 20px;
     }
 
+    /* Timer visual no card */
+    #uiTimer {
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 14px;
+    }
+
   </style>
 </head>
 <body>
@@ -338,7 +361,7 @@
 
     <div class="flashcard">
       <div class="card-header">
-        <span id="uiCardId">ID: —</span>
+        <span><b id="uiCardId">ID: —</b> • <span id="uiTimer">⏱️ 00:00</span></span>
         <span id="uiCardSide">Frente (Pergunta)</span>
       </div>
       
@@ -348,7 +371,6 @@
         <button class="btn" id="btnPrev">⬅️ Anterior</button>
         <button class="btn hard" id="btnHard">🔥 Difícil</button>
         <button class="btn" id="btnNext">Próximo ➡️</button>
-        <button class="btn primary btn-main" id="btnFlip">R — Mostrar Resposta</button>
       </div>
     </div>
 
@@ -361,6 +383,8 @@
 
   </div>
 
+  <button class="btn primary floating-btn" id="btnFlip">R — Mostrar Resposta</button>
+
   <div id="exportModal" class="modal-overlay hidden">
     <div class="modal-content">
       <h3 style="margin-bottom: 10px; color: var(--accent);">Relatório Gerado com Sucesso!</h3>
@@ -368,9 +392,11 @@
         Pressione e segure a imagem abaixo para <b>Salvar</b> ou <b>Compartilhar</b>.
       </p>
       <img id="exportedImage" src="" alt="Relatório de Estudo" />
-      <button id="btnCloseModal" class="btn primary btn-main">Voltar aos Estudos</button>
+      <button id="btnCloseModal" class="btn primary" style="width:100%;">Voltar aos Estudos</button>
     </div>
   </div>
+
+  <div id="exportCanvasTarget"></div>
 
   <script>
     /* =========================================================
@@ -455,7 +481,7 @@
         },
         {
           id: "ESP-02",
-          text: `Los propietarios de la libertad\n\nLas palabras cumplen ciclos; las actitudes también. Sin embargo, cuando las palabras designan actitudes, los ciclos se vuelven más complejos. Cuando el hoy tan denostado Sartre puso la palabra compromiso sobre el tapete... estas dos palabras, compromiso y responsabilidad, designaban actitudes que, sin ser gemelas, eran bastante afines.\n\n...Los grandes pontífices de la propaganda subrayaron una y otra vez la palabra libertad y denostaron el compromiso. Libertad no era librarse de Batista o de Somoza, sino mantener la prensa libre...\n\n¿Y compromiso? Es la actitud que adoptan ciertos intelectuales, cuya carga ideológica perjudica notoriamente su arte. Después de todo, ¿cómo se atreven a frecuentar las provincias del espíritu, si es público y notorio que tales ámbitos son patrimonio exclusivo de los propietarios de la libertad?\n\nTransformar palavras em atitudes tem sido um dos grandes dilemas dos intelectuais. Ao ponderar sobre essa temática, o autor leva o leitor a perceber que`,
+          text: `Los propietarios de la libertad\n\nLas palabras cumplen ciclos; las actitudes también. Sin embargo, cuando las palabras designan actitudes, los ciclos se vuelven más complejos. Cuando el hoy tan denostado Sartre puso la palabra compromiso sobre el tapete... estas dos palabras, compromiso y responsabilidad, designaban actitudes que, sin ser gemelas, eran bastante afines.\n\n...Los grandes pontífices de la propaganda subrayaron una y otra vez la palabra libertad y denostaron el compromiso. Libertad no era librarse de Batista o de Somoza, sino mantener la prensa libre...\n\n¿Y compromiso? Es la actitud que adoptan ciertos intelectuales, cuya carga ideológica perjudica notoriamente su arte. Después de todo, ¿cómo se atreven a frecuentar las provincias del espíritu, si es público y notorio que tales ámbitos son patrimonio exclusivo de los propietarios de la libertad?\n\nTransformar palabras em atitudes tem sido um dos grandes dilemas dos intelectuais. Ao ponderar sobre essa temática, o autor leva o leitor a perceber que`,
           alts: [
             "o compromisso político afasta o artista da criação.",
             "os costumes sociais governam a linguagem e as atitudes das pessoas.",
@@ -1161,7 +1187,7 @@
           alts: [
             "marxista, no contexto do materialismo histórico.",
             "logicista, no propósito de entendimento dos fatos.",
-            "utilitarista, no sentido da racionalidade das actions.",
+            "utilitarista, no sentido da racionalidade das ações.",
             "pós-modernista, na discussão da fluidez das relações.",
             "existencialista, na questão do reconhecimento de si."
           ],
@@ -1282,7 +1308,7 @@
             "demarcação de terras públicas.",
             "imposição da escravidão por dívidas.",
             "restrição da cidadania por parentesco.",
-            "restauração de instituições ancestrais.",
+            "restauração de institutions ancestrais.",
             "expansão das fronteiras extrapeninsulares."
           ],
           answer: "E"
@@ -1540,8 +1566,11 @@
     let isFlipped = false;
     let selectedAnswer = null; 
     
-    // Agora o sistema rastreia O QUE você marcou para injetar no relatório
-    let userAnswers = {}; // Ex: { "HUM-46": { selected: "A", isCorrect: false } }
+    let userAnswers = {}; 
+    let cardTimers = {}; // Guarda o tempo gasto em cada card (em segundos)
+    let currentCardStartTime = 0; // Marca quando o card foi aberto
+    let timerInterval = null; // Controla o relógio visual
+
     let reviewedCards = new Set();
     let hardCards = new Set();
     let scoredCards = new Set(); 
@@ -1561,6 +1590,7 @@
       uiProgressBar: document.getElementById('uiProgressBar'),
       
       uiCardId: document.getElementById('uiCardId'),
+      uiTimer: document.getElementById('uiTimer'),
       uiCardSide: document.getElementById('uiCardSide'),
       uiCardContent: document.getElementById('uiCardContent'),
       
@@ -1581,7 +1611,18 @@
     /* =========================================================
        3. LÓGICA DE NAVEGAÇÃO E RENDERIZAÇÃO
        ========================================================= */
+    function formatTime(secs) {
+        let m = Math.floor(secs / 60).toString().padStart(2, '0');
+        let s = (secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
     function init() {
+      if (typeof DATABASE === 'undefined') {
+        els.uiCardContent.innerHTML = "<b style='color:var(--bad)'>ERRO:</b> O arquivo <code>questoes.js</code> não foi encontrado.";
+        return;
+      }
+
       els.deckSelector.innerHTML = "";
       Object.keys(DATABASE).forEach(deck => {
         const opt = document.createElement('option');
@@ -1620,12 +1661,13 @@
     }
 
     function resetSessionCompleta() {
-      if(!confirm("Tem certeza que deseja zerar os acertos, erros e cards revisados desta sessão?")) return;
+      if(!confirm("Tem certeza que deseja zerar os acertos, erros, cronômetros e cards revisados desta sessão?")) return;
       
       reviewedCards.clear();
       hardCards.clear();
       scoredCards.clear();
       userAnswers = {};
+      cardTimers = {};
       sessionHits = 0;
       sessionMisses = 0;
       
@@ -1641,6 +1683,15 @@
 
     window.selectAlt = function(letter) {
       if (isFlipped) return; 
+      
+      const card = deckCards[currentIndex];
+      // Congela o cronômetro no primeiro clique na alternativa
+      if (cardTimers[card.id] === undefined) {
+          cardTimers[card.id] = Math.floor((Date.now() - currentCardStartTime) / 1000);
+          clearInterval(timerInterval);
+          els.uiTimer.textContent = `⏱️ ${formatTime(cardTimers[card.id])}`;
+      }
+
       selectedAnswer = letter;
       renderCard();
     };
@@ -1649,15 +1700,31 @@
       if (deckCards.length === 0) {
         els.uiCardContent.innerHTML = "Nenhum card disponível neste deck/seleção.";
         els.uiCardId.textContent = "—";
+        els.uiTimer.textContent = "⏱️ 00:00";
         updateProgress();
+        clearInterval(timerInterval);
         return;
       }
 
       const card = deckCards[currentIndex];
       
-      // Se a pessoa já respondeu antes e navegou de volta, puxamos a memória
       if (userAnswers[card.id] && selectedAnswer === null) {
           selectedAnswer = userAnswers[card.id].selected;
+      }
+
+      // == LÓGICA DO CRONÔMETRO ==
+      clearInterval(timerInterval);
+      if (cardTimers[card.id] !== undefined) {
+          // Se já resolveu antes, mostra o tempo salvo
+          els.uiTimer.textContent = `⏱️ ${formatTime(cardTimers[card.id])}`;
+      } else {
+          // Inicia novo cronômetro se nunca foi respondida
+          currentCardStartTime = Date.now();
+          els.uiTimer.textContent = `⏱️ 00:00`;
+          timerInterval = setInterval(() => {
+              let elapsed = Math.floor((Date.now() - currentCardStartTime) / 1000);
+              els.uiTimer.textContent = `⏱️ ${formatTime(elapsed)}`;
+          }, 1000);
       }
 
       els.uiCardId.textContent = `Card: ${card.id}`;
@@ -1712,7 +1779,12 @@
       if (deckCards.length === 0) return;
       const card = deckCards[currentIndex];
 
-      // Computa pontuação e armazena a resposta específica apenas na primeira vez que vira
+      // Se o cara virar a carta sem clicar em nenhuma alternativa antes, congela o tempo agora.
+      if (cardTimers[card.id] === undefined) {
+          cardTimers[card.id] = Math.floor((Date.now() - currentCardStartTime) / 1000);
+          clearInterval(timerInterval);
+      }
+
       if (!isFlipped && !userAnswers[card.id]) {
         if (selectedAnswer) {
           let correct = (selectedAnswer === card.answer);
@@ -1721,7 +1793,6 @@
           userAnswers[card.id] = { selected: selectedAnswer, isCorrect: correct };
           scoredCards.add(card.id);
         } else {
-          // Virou sem tentar responder
           userAnswers[card.id] = { selected: null, isCorrect: null };
         }
         reviewedCards.add(card.id); 
@@ -1793,7 +1864,7 @@
     }
 
     /* =========================================================
-       4. EXPORTAÇÃO ESTRUTURADA (COM INDICADOR DE ACERTO/ERRO)
+       4. EXPORTAÇÃO ESTRUTURADA (COM INDICADOR DE TEMPO)
        ========================================================= */
     async function exportResultPNG() {
       if (reviewedCards.size === 0) {
@@ -1857,7 +1928,6 @@
         let idx = ['A','B','C','D','E'].indexOf(item.data.answer);
         let answerText = (idx !== -1 && item.data.alts) ? item.data.alts[idx] : 'Resposta indisponível';
 
-        // Lógica da Etiqueta de Resposta do Usuário
         let ansData = userAnswers[item.data.id];
         let statusBadge = '';
         let userSelectionText = '';
@@ -1876,12 +1946,17 @@
             }
         }
 
+        // Lógica de resgatar o tempo
+        let timeStr = cardTimers[item.data.id] !== undefined ? formatTime(cardTimers[item.data.id]) : '--:--';
+        let timeBadge = `<span style="color: #60a5fa; border: 1px solid rgba(96,165,250,0.3); padding: 2px 8px; border-radius: 12px; margin-left: 10px;">⏱️ ${timeStr}</span>`;
+
         htmlContent += `
           <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); padding: 24px; border-radius: 16px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 14px; font-weight: bold; color: rgba(255,255,255,0.5);">
               <div style="display: flex; align-items: center;">
                 <span>ID: ${item.data.id} | Matéria: ${item.deckName}</span>
                 ${statusBadge}
+                ${timeBadge}
               </div>
               ${isHard ? '<span style="color: #f59e0b;">🔥 Marcada como Difícil</span>' : ''}
             </div>
