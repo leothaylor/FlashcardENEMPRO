@@ -261,14 +261,11 @@
       justify-content: center;
       gap: 8px;
       transition: all 0.15s ease;
-      flex: 1 1 auto; /* Permite crescer/encolher no mobile */
+      flex: 1 1 auto; 
       text-align: center;
     }
 
-    /* Força o botão principal a ocupar 100% no mobile */
-    .btn-main {
-      flex-basis: 100%;
-    }
+    .btn-main { flex-basis: 100%; }
 
     .btn:hover { background: rgba(255,255,255,.1); }
     .btn:active { transform: translateY(2px); }
@@ -286,12 +283,14 @@
       justify-content: center;
     }
 
-    /* Área de Exportação (Invisível para o usuário, usada para renderizar a imagem) */
+    /* Área de Exportação invisível melhorada */
     #exportCanvasTarget {
       position: absolute;
-      top: -9999px;
-      left: -9999px;
-      z-index: -1;
+      top: 0;
+      left: 0;
+      z-index: -9999;
+      opacity: 0;
+      pointer-events: none;
     }
 
   </style>
@@ -349,7 +348,7 @@
 
   <script>
     /* =========================================================
-       1. ESTADO DA SESSÃO 
+       1. ESTADO GLOBAL DA SESSÃO (Não zera ao trocar de deck)
        ========================================================= */
     let currentDeckName = "";
     let deckCards = [];
@@ -358,6 +357,7 @@
     let isFlipped = false;
     let selectedAnswer = null; 
     
+    // Essas variáveis agora guardam o progresso de toda a sua sessão de estudo.
     let reviewedCards = new Set();
     let hardCards = new Set();
     let scoredCards = new Set(); 
@@ -395,9 +395,8 @@
        3. LÓGICA DE NAVEGAÇÃO E RENDERIZAÇÃO
        ========================================================= */
     function init() {
-      // Checa se DATABASE foi carregado do arquivo externo
       if (typeof DATABASE === 'undefined') {
-        els.uiCardContent.innerHTML = "<b style='color:var(--bad)'>ERRO:</b> O arquivo <code>questoes.js</code> não foi encontrado ou possui erros de sintaxe.";
+        els.uiCardContent.innerHTML = "<b style='color:var(--bad)'>ERRO:</b> O arquivo <code>questoes.js</code> não foi encontrado.";
         return;
       }
 
@@ -417,7 +416,7 @@
       els.btnNext.addEventListener('click', () => navigate(1));
       els.btnHard.addEventListener('click', toggleHard);
       els.btnShuffle.addEventListener('click', shuffleDeck);
-      els.btnRestart.addEventListener('click', () => loadDeck(currentDeckName));
+      els.btnRestart.addEventListener('click', resetSessionCompleta);
       els.btnReviewHards.addEventListener('click', startHardReview);
       els.btnExport.addEventListener('click', exportResultPNG);
 
@@ -432,17 +431,26 @@
       currentDeckName = deckName;
       deckCards = customCardsArray ? [...customCardsArray] : [...DATABASE[deckName]];
       
-      if (!customCardsArray) {
-        reviewedCards.clear();
-        hardCards.clear();
-        scoredCards.clear();
-        sessionHits = 0;
-        sessionMisses = 0;
-      }
-      
+      // NÃO zeramos mais as variáveis globais aqui, para manter a sessão ao trocar de matéria.
       currentIndex = 0;
       resetCardState();
       renderCard();
+    }
+
+    // Só zera os dados se o usuário apertar "Reiniciar Sessão"
+    function resetSessionCompleta() {
+      if(!confirm("Tem certeza que deseja zerar os acertos, erros e cards revisados desta sessão?")) return;
+      
+      reviewedCards.clear();
+      hardCards.clear();
+      scoredCards.clear();
+      sessionHits = 0;
+      sessionMisses = 0;
+      
+      // Remove o status "(Revisão)" se estiver dentro de uma
+      let baseDeck = currentDeckName.replace(' (Revisão)', '');
+      els.deckSelector.value = baseDeck;
+      loadDeck(baseDeck);
     }
 
     function resetCardState() {
@@ -458,14 +466,13 @@
 
     function renderCard() {
       if (deckCards.length === 0) {
-        els.uiCardContent.innerHTML = "Nenhum card disponível neste deck.";
+        els.uiCardContent.innerHTML = "Nenhum card disponível neste deck/seleção.";
         els.uiCardId.textContent = "—";
         updateProgress();
         return;
       }
 
       const card = deckCards[currentIndex];
-      reviewedCards.add(card.id);
       
       els.uiCardId.textContent = `Card: ${card.id}`;
       els.btnHard.classList.toggle('active', hardCards.has(card.id));
@@ -522,7 +529,12 @@
       if (!isFlipped && selectedAnswer && !scoredCards.has(card.id)) {
         if (selectedAnswer === card.answer) sessionHits++;
         else sessionMisses++;
+        
         scoredCards.add(card.id);
+        reviewedCards.add(card.id); // Só conta como revisado se a pessoa tentou responder e virou
+      } else if (!isFlipped && !selectedAnswer) {
+        // Se virou sem responder, apenas marca como revisado, mas não pontua
+        reviewedCards.add(card.id);
       }
 
       isFlipped = !isFlipped;
@@ -553,11 +565,12 @@
     function updateProgress() {
       const total = deckCards.length;
       const current = total > 0 ? currentIndex + 1 : 0;
-      const revCount = reviewedCards.size;
-      const pct = total > 0 ? (revCount / total) * 100 : 0;
+      
+      // O progresso visual (barra azul) baseia-se apenas no andamento dentro do deck atual
+      const pct = total > 0 ? (current / total) * 100 : 0;
 
       els.uiProgress.textContent = `${current} / ${total}`;
-      els.uiReviewed.textContent = revCount;
+      els.uiReviewed.textContent = reviewedCards.size;
       els.uiHits.textContent = sessionHits;
       els.uiMisses.textContent = sessionMisses;
       els.uiHardCount.textContent = hardCards.size;
@@ -580,12 +593,19 @@
         alert("Nenhum card marcado como difícil nesta sessão.");
         return;
       }
-      const hardsArray = DATABASE[currentDeckName].filter(c => hardCards.has(c.id));
-      loadDeck(currentDeckName + " (Revisão)", hardsArray);
+      
+      let baseDeck = currentDeckName.replace(' (Revisão)', '');
+      const hardsArray = DATABASE[baseDeck].filter(c => hardCards.has(c.id));
+      
+      if(hardsArray.length > 0){
+        loadDeck(baseDeck + " (Revisão)", hardsArray);
+      } else {
+        alert("As questões difíceis pertencem a outra matéria. Volte à matéria correta para revisá-las.");
+      }
     }
 
     /* =========================================================
-       4. EXPORTAÇÃO ESTRUTURADA (COMPLETA)
+       4. EXPORTAÇÃO ESTRUTURADA (BUSCA GLOBAL CORRIGIDA)
        ========================================================= */
     async function exportResultPNG() {
       if (reviewedCards.size === 0) {
@@ -599,17 +619,17 @@
       const accuracy = totalAns > 0 ? Math.round((sessionHits / totalAns) * 100) : 0;
 
       const box = document.createElement('div');
-      box.style.background = '#070b12'; // Fundo bem escuro
+      box.style.background = '#070b12'; 
       box.style.color = '#eaf0ff';
       box.style.padding = '40px';
       box.style.fontFamily = 'Inter, sans-serif';
       box.style.width = '800px';
 
-      // 1. Cabeçalho da Imagem
+      // 1. Cabeçalho
       let htmlContent = `
         <div style="border-bottom: 2px solid rgba(96,165,250,0.3); padding-bottom: 20px; margin-bottom: 30px;">
           <h2 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 28px;">🧠 Relatório de Estudo</h2>
-          <p style="margin: 0; opacity: 0.7; font-size: 16px;">${dateStr} | Deck: <strong>${currentDeckName}</strong></p>
+          <p style="margin: 0; opacity: 0.7; font-size: 16px;">${dateStr} | Múltiplas matérias possíveis</p>
         </div>
         
         <div style="display: flex; gap: 20px; margin-bottom: 40px;">
@@ -631,30 +651,40 @@
         <div style="display: flex; flex-direction: column; gap: 30px;">
       `;
 
-      // 2. Localiza e imprime cada questão revisada
+      // 2. Busca Global Corrigida: Procura o ID em todas as matérias
+      let cardsToExport = [];
       reviewedCards.forEach(cardId => {
-        // Busca a questão no banco
-        let card = DATABASE[currentDeckName.replace(' (Revisão)', '')].find(c => c.id === cardId);
-        
-        if(card) {
-          let isHard = hardCards.has(cardId);
-          htmlContent += `
-            <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); padding: 24px; border-radius: 16px;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 14px; font-weight: bold; color: rgba(255,255,255,0.5);">
-                <span>Card ID: ${card.id}</span>
-                ${isHard ? '<span style="color: #f59e0b;">🔥 Marcada como Difícil</span>' : ''}
-              </div>
-              
-              <div style="font-size: 16px; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap;">${card.text}</div>
-              
-              <div style="background: rgba(34,197,94,0.1); border-left: 4px solid #22c55e; padding: 16px; border-radius: 8px;">
-                <div style="font-weight: bold; color: #22c55e; margin-bottom: 8px;">Gabarito: ${card.answer}</div>
-                <div style="font-size: 15px;">${card.alts ? card.alts[['A','B','C','D','E'].indexOf(card.answer)] : 'Resposta indisponível.'}</div>
-                ${card.comment ? `<div style="margin-top: 12px; font-size: 14px; opacity: 0.8;"><strong>Comentário:</strong> ${card.comment}</div>` : ''}
-              </div>
-            </div>
-          `;
+        for(let deck in DATABASE) {
+            let foundCard = DATABASE[deck].find(c => c.id === cardId);
+            if(foundCard) {
+                cardsToExport.push({ deckName: deck, data: foundCard });
+                break; // Achou a questão, sai da busca e vai pra próxima
+            }
         }
+      });
+
+      // 3. Monta o HTML com as questões encontradas
+      cardsToExport.forEach(item => {
+        let isHard = hardCards.has(item.data.id);
+        let idx = ['A','B','C','D','E'].indexOf(item.data.answer);
+        let answerText = (idx !== -1 && item.data.alts) ? item.data.alts[idx] : 'Resposta indisponível';
+
+        htmlContent += `
+          <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); padding: 24px; border-radius: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 16px; font-size: 14px; font-weight: bold; color: rgba(255,255,255,0.5);">
+              <span>ID: ${item.data.id} | Matéria: ${item.deckName}</span>
+              ${isHard ? '<span style="color: #f59e0b;">🔥 Marcada como Difícil</span>' : ''}
+            </div>
+            
+            <div style="font-size: 16px; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap;">${item.data.text}</div>
+            
+            <div style="background: rgba(34,197,94,0.1); border-left: 4px solid #22c55e; padding: 16px; border-radius: 8px;">
+              <div style="font-weight: bold; color: #22c55e; margin-bottom: 8px;">Gabarito: ${item.data.answer}</div>
+              <div style="font-size: 15px;">${answerText}</div>
+              ${item.data.comment ? `<div style="margin-top: 12px; font-size: 14px; opacity: 0.8;"><strong>Comentário:</strong> ${item.data.comment}</div>` : ''}
+            </div>
+          </div>
+        `;
       });
 
       htmlContent += `</div>`;
@@ -669,7 +699,7 @@
         
         const a = document.createElement("a");
         a.href = dataUrl;
-        a.download = `Estudo_Completo_${now.getTime()}.png`;
+        a.download = `Estudo_Geral_Sessao_${now.getTime()}.png`;
         a.click();
       } catch (err) {
         console.error("Erro ao gerar imagem:", err);
