@@ -3,2657 +3,587 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Flashcard Pro ENEM</title>
+  <title>Flashcard ENEM - Versão Enxuta</title>
 
-  <!-- Fonte -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- html2canvas (exportar imagem) -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <style>
-    :root{
-      --bg0:#070b12;
-      --bg1:#0a1220;
-      --card:#0c172a;
-      --card2:#0b1425;
-      --border:rgba(255,255,255,.08);
-      --border2:rgba(255,255,255,.12);
-      --txt:#eaf0ff;
-      --muted:rgba(234,240,255,.70);
-      --muted2:rgba(234,240,255,.55);
-      --good:#22c55e;
-      --bad:#ef4444;
-      --accent:#60a5fa;
-      --accent2:#34d399;
+    :root {
+      --bg0: #070b12;
+      --bg1: #0a1220;
+      --card: #0c172a;
+      --border: rgba(255,255,255,.08);
+      --border-glow: rgba(96,165,250,.4);
+      --txt: #eaf0ff;
+      --muted: rgba(234,240,255,.60);
+      --accent: #60a5fa;
+      --hard: #ef4444;
+      --radius: 18px;
       --shadow: 0 18px 80px rgba(0,0,0,.55);
-      --radius:18px;
-      --radius2:22px;
-      --focus: 0 0 0 4px rgba(96,165,250,.20);
+      --glow: 0 0 20px rgba(96,165,250,.15);
     }
 
-    *{ box-sizing:border-box; }
-    html, body{ height:100%; }
-    body{
-      margin:0;
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    
+    body {
+      font-family: 'Inter', sans-serif;
       color: var(--txt);
-      background:
-        radial-gradient(1100px 600px at 20% 0%, rgba(96,165,250,.25), transparent 60%),
-        radial-gradient(900px 500px at 90% 30%, rgba(52,211,153,.18), transparent 60%),
-        radial-gradient(800px 500px at 60% 100%, rgba(239,68,68,.10), transparent 60%),
-        linear-gradient(180deg, var(--bg0), var(--bg1));
-      min-height:100vh;
+      background: linear-gradient(180deg, var(--bg0), var(--bg1));
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
       padding: 20px;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
+      overflow-x: hidden;
     }
 
-    a{ color:inherit; }
-
-    .app{
-      width: min(980px, 100%);
-      display:flex;
-      flex-direction:column;
-      gap:14px;
-      padding-bottom: 28px;
+    .app {
+      width: min(800px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
 
-    .top{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:14px;
-      padding: 18px 18px 0 18px;
-    }
-
-    .brand{
-      display:flex;
-      gap:12px;
-      align-items:center;
-    }
-
-    .logo{
-      width:44px; height:44px;
-      border-radius: 14px;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(96,165,250,.45), transparent 60%),
-        radial-gradient(circle at 70% 70%, rgba(52,211,153,.25), transparent 60%),
-        rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      box-shadow: 0 10px 40px rgba(0,0,0,.35);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-size:22px;
-    }
-
-    .title{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      line-height:1.15;
-    }
-    .title h1{
-      margin:0;
-      font-size: 20px;
-      font-weight: 800;
-      letter-spacing: .2px;
-    }
-    .title .sub{
-      font-size: 12.5px;
-      color: var(--muted);
-    }
-
-    .shell{
-      border:1px solid var(--border);
+    /* Topo e Seleção */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
       background: rgba(255,255,255,.03);
-      border-radius: var(--radius2);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      backdrop-filter: blur(10px);
-    }
-
-    .panel{
-      padding: 16px;
-      display:flex;
-      flex-direction:column;
-      gap:14px;
-    }
-
-    .grid2{
-      display:grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap:14px;
-    }
-    @media (max-width: 860px){
-      .grid2{ grid-template-columns: 1fr; }
-      body{ padding: 14px; }
-      .top{ padding: 16px 16px 0 16px; }
-    }
-
-    .card{
-      border-radius: var(--radius);
-      border:1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.02));
-      overflow:hidden;
-    }
-
-    .card .hd{
-      padding: 14px 14px 10px 14px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-    }
-    .card .hd h2{
-      margin:0;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing:.2px;
-    }
-    .card .hd .hint{
-      color: var(--muted2);
-      font-size: 12px;
-    }
-
-    .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-
-    .btn{
-      appearance:none;
-      border:none;
-      cursor:pointer;
-      user-select:none;
-      padding: 10px 12px;
-      border-radius: 14px;
-      color: var(--txt);
-      background: rgba(255,255,255,.06);
-      border:1px solid var(--border);
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      font-weight:700;
-      font-size: 13px;
-      transition: transform .06s ease, background .15s ease, border-color .15s ease;
-      white-space:nowrap;
-    }
-    .btn:hover{ background: rgba(255,255,255,.085); border-color: var(--border2); }
-    .btn:active{ transform: translateY(1px); }
-    .btn:focus{ outline:none; box-shadow: var(--focus); }
-
-    .btn.primary{
-      background: rgba(96,165,250,.18);
-      border-color: rgba(96,165,250,.28);
-    }
-    .btn.primary:hover{
-      background: rgba(96,165,250,.22);
-      border-color: rgba(96,165,250,.36);
-    }
-
-    .btn.good{
-      background: rgba(34,197,94,.18);
-      border-color: rgba(34,197,94,.30);
-    }
-    .btn.bad{
-      background: rgba(239,68,68,.16);
-      border-color: rgba(239,68,68,.28);
-    }
-    .btn.warn{
-      background: rgba(245,158,11,.14);
-      border-color: rgba(245,158,11,.26);
-    }
-
-    .btn.wide{ width: 100%; }
-
-    .pill{
-      padding: 7px 10px;
-      border-radius: 999px;
       border: 1px solid var(--border);
-      background: rgba(255,255,255,.04);
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 700;
-      display:inline-flex;
-      gap:8px;
-      align-items:center;
+      border-radius: var(--radius);
+      backdrop-filter: blur(10px);
     }
-
-    .stats{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .stat{
-      padding: 8px 10px;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.04);
-      font-size: 12px;
-      color: var(--muted);
+    
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
       font-weight: 800;
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
-    .stat b{ color: var(--txt); }
-
-    .inputs{
-      padding: 0 14px 14px 14px;
-      display:flex;
-      flex-direction:column;
-      gap:10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    .input, select, textarea{
-      width:100%;
-      border-radius: 14px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.18);
+    select {
+      background: rgba(0,0,0,.3);
+      border: 1px solid var(--border);
       color: var(--txt);
-      padding: 12px 12px;
-      font-size: 14px;
-      outline:none;
-      transition: box-shadow .12s ease, border-color .12s ease, background .12s ease;
-    }
-    .input:focus, select:focus, textarea:focus{
-      box-shadow: var(--focus);
-      border-color: rgba(96,165,250,.35);
-      background: rgba(0,0,0,.24);
-    }
-    textarea{ min-height: 140px; resize: vertical; }
-
-    .split{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-    @media (max-width: 520px){
-      .split{ grid-template-columns: 1fr; }
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
     }
 
-    .modeGrid{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-    }
-
-    .footerLine{
-      padding: 10px 14px 14px 14px;
-      color: var(--muted2);
-      font-size: 12px;
-    }
-    .kbd{
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.04);
-      padding: 2px 7px;
-      border-radius: 8px;
-      font-weight: 800;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* Flashcard */
-    .flashWrap{
-      padding: 14px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
-
-    .metaRow{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .metaLeft{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-
-    .cardBox{
-      border-radius: var(--radius2);
-      border:1px solid var(--border);
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      padding: 14px;
-    }
-
-    .label{
-      color: var(--muted2);
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: none;
-      letter-spacing:.2px;
-      margin-bottom:6px;
-    }
-
-    .block{
-      border-radius: 16px;
-      border:1px solid var(--border);
-      background: rgba(0,0,0,.16);
-      padding: 12px;
-      white-space: pre-wrap;
-      line-height: 1.55;
-      font-size: 14px;
-    }
-
-    .alts{
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-      margin-top:10px;
-    }
-    .alt{
-      border-radius: 14px;
-      border:1px solid var(--border);
+    /* Progresso */
+    .progress-container {
       background: rgba(255,255,255,.03);
-      padding: 10px 10px;
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stats-row {
+      display: flex;
+      justify-content: space-between;
       font-size: 14px;
-      line-height: 1.4;
-    }
-    .alt .key{
-      font-weight: 900;
+      font-weight: 600;
       color: var(--muted);
-      min-width: 18px;
-      text-align:center;
-      margin-top:1px;
     }
 
-    /* Modal */
-    .modal{
-      position: fixed;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 18px;
-      background: rgba(0,0,0,.55);
-      backdrop-filter: blur(10px);
-      z-index: 50;
-    }
-    .modal.show{ display:flex; }
+    .stats-row span b { color: var(--txt); }
+    .stats-row .hard-count { color: var(--hard); }
 
-    .modalBox{
-      width: min(980px, 100%);
-      max-height: min(88vh, 820px);
-      overflow:auto;
-      border-radius: 22px;
-      border:1px solid var(--border);
-      background: rgba(9,14,26,.92);
-      box-shadow: 0 20px 110px rgba(0,0,0,.65);
+    .progress-bar {
+      height: 8px;
+      background: rgba(0,0,0,.4);
+      border-radius: 4px;
+      overflow: hidden;
     }
-    .modalHd{
-      padding: 14px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      position: sticky;
-      top:0;
-      background: rgba(9,14,26,.92);
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Flashcard Central */
+    .flashcard {
+      background: var(--card);
+      border: 1px solid var(--border-glow);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow), var(--glow);
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .card-header {
+      padding: 14px 20px;
       border-bottom: 1px solid var(--border);
-      backdrop-filter: blur(10px);
-      z-index: 2;
-    }
-    .modalHd h3{
-      margin:0;
-      font-size: 14px;
-      font-weight: 900;
-    }
-    .modalBd{
-      padding: 14px;
-      display:flex;
-      flex-direction:column;
-      gap:12px;
-    }
-
-    table{
-      width:100%;
-      border-collapse: collapse;
-      overflow:hidden;
-      border-radius: 16px;
-      border:1px solid var(--border);
-      background: rgba(255,255,255,.02);
-    }
-    th, td{
-      padding: 10px 10px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
+      display: flex;
+      justify-content: space-between;
       font-size: 13px;
-      vertical-align: top;
-    }
-    th{
-      text-align:left;
+      font-weight: 700;
       color: var(--muted);
-      font-weight: 900;
-      font-size: 12px;
     }
-    tr:last-child td{ border-bottom:none; }
 
-    .tiny{
-      color: var(--muted2);
-      font-size: 12px;
-      line-height: 1.4;
+    .card-body {
+      padding: 24px 20px;
+      flex: 1;
+      overflow-y: auto;
+      max-height: 50vh;
+      font-size: 16px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .card-body::-webkit-scrollbar { width: 8px; }
+    .card-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+
+    .alts {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .alt {
+      background: rgba(255,255,255,.02);
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 12px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .alt .key {
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    /* Botões */
+    .controls {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      gap: 12px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,.1);
+      border-bottom-left-radius: var(--radius);
+      border-bottom-right-radius: var(--radius);
+    }
+
+    .btn {
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      color: var(--txt);
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-family: inherit;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+
+    .btn:hover { background: rgba(255,255,255,.1); }
+    .btn:active { transform: translateY(2px); }
+    
+    .btn.primary { background: rgba(96,165,250,.15); border-color: var(--accent); color: var(--accent); }
+    .btn.primary:hover { background: rgba(96,165,250,.25); }
+
+    .btn.hard { border-color: rgba(239,68,68,.4); color: #fca5a5; }
+    .btn.hard.active { background: rgba(239,68,68,.2); border-color: var(--hard); }
+
+    .utility-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    /* Ocultar elementos */
+    .hidden { display: none !important; }
+
+    /* Área de Exportação invisível (para print) */
+    #exportCanvasTarget {
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
     }
   </style>
 </head>
-
 <body>
+
   <div class="app">
-    <div class="shell">
-      <div class="top">
-        <div class="brand">
-          <div class="logo">🧠</div>
-          <div class="title">
-            <h1>Flashcard Pro ENEM</h1>
-            <div class="sub">Local Storage • filtros por Ano/Área • estatísticas • exportar resultado em imagem</div>
-          </div>
-        </div>
+    
+    <div class="header">
+      <h1>🧠 Flashcard ENEM</h1>
+      <select id="deckSelector"></select>
+    </div>
+
+    <div class="progress-container">
+      <div class="stats-row">
+        <span>Progresso: <b id="uiProgress">0 / 0</b></span>
+        <span>Revisados: <b id="uiReviewed">0</b></span>
+        <span class="hard-count">Difíceis marcadas: <b id="uiHardCount">0</b></span>
       </div>
-
-      <div class="panel">
-        <div class="grid2">
-          <!-- CONTROLES -->
-          <div class="card">
-            <div class="hd">
-              <h2>Controles</h2>
-              <div class="hint">sem bagunça</div>
-            </div>
-
-            <div class="inputs">
-              <div class="row">
-                <button class="btn primary" id="btnManage">➕ Gerenciar cards</button>
-                <button class="btn" id="btnExportJSON">⬇️ Exportar JSON</button>
-                <button class="btn" id="btnImportJSON">⬆️ Importar JSON</button>
-                <input type="file" id="fileJSON" accept="application/json" style="display:none"/>
-              </div>
-
-              <div class="row">
-                <button class="btn" id="btnResetSession">🔄 Reset sessão</button>
-                <button class="btn warn" id="btnResetAll">🧨 Reset total</button>
-              </div>
-
-              <div>
-                <div class="label">Busca (texto / alternativa / comentário)</div>
-                <input class="input" id="qSearch" placeholder="Ex.: cidadania, Kant, desigualdade, questão 12"/>
-              </div>
-
-              <div class="split">
-                <div>
-                  <div class="label">Ano</div>
-                  <select id="fYear"></select>
-                </div>
-                <div>
-                  <div class="label">Área</div>
-                  <select id="fArea"></select>
-                </div>
-              </div>
-
-              <div class="modeGrid">
-                <button class="btn" id="btnModeStudy">📚 Estudo</button>
-                <button class="btn" id="btnModeReview">🧪 Revisão de erros</button>
-              </div>
-
-              <div class="stats" id="statsTop">
-                <div class="stat">Total: <b id="stTotal">0</b></div>
-                <div class="stat">Filtrados: <b id="stFiltered">0</b></div>
-                <div class="stat">Card: <b id="stIndex">0/0</b></div>
-                <div class="stat">Frente: <b id="stSide">—</b></div>
-              </div>
-
-              <div class="stats" id="statsScore">
-                <div class="stat">✅ Acertos: <b id="stHits">0</b></div>
-                <div class="stat">❌ Erros: <b id="stMiss">0</b></div>
-                <div class="stat">🎯 Precisão: <b id="stAcc">0%</b></div>
-              </div>
-
-              <button class="btn wide" id="btnExportImage">🖼️ Exportar resultado (imagem)</button>
-            </div>
-          </div>
-
-          <!-- FLASHCARD -->
-          <div class="card">
-            <div class="hd">
-              <h2>Flashcard</h2>
-              <div class="hint">Espaço vira • ←/→ navega • <span class="kbd">R</span> reset</div>
-            </div>
-
-            <div class="flashWrap">
-              <div class="metaRow">
-                <div class="metaLeft">
-                  <span class="pill">Ano: <b id="metaYear">—</b></span>
-                  <span class="pill">Área: <b id="metaArea">—</b></span>
-                  <span class="pill">ID: <b id="metaId">—</b></span>
-                </div>
-                <button class="btn" id="btnRandom">🎲</button>
-              </div>
-
-              <div class="row" style="justify-content:space-between;">
-                <button class="btn" id="btnPrev">⬅️ Anterior</button>
-                <button class="btn primary" id="btnFlip">🔁 Virar</button>
-                <button class="btn" id="btnNext">Próximo ➡️</button>
-              </div>
-
-              <div class="cardBox" id="cardBox">
-                <div class="label" id="lblMain">Enunciado / Texto-base</div>
-                <div class="block" id="bStem">—</div>
-
-                <div class="label" style="margin-top:12px;">Alternativas</div>
-                <div class="alts" id="bAlts"></div>
-
-                <div class="label" style="margin-top:12px;">Gabarito / Comentário</div>
-                <div class="block" id="bBack">Vire o card para ver o gabarito.</div>
-              </div>
-
-              <div class="row" style="justify-content:space-between;">
-                <button class="btn good" id="btnHit">✅ Acertei</button>
-                <button class="btn bad" id="btnMiss">❌ Errei</button>
-              </div>
-
-              <div class="footerLine">
-                <div class="tiny">
-                  <b>⚠️ Dica importante:</b> sempre substitua o <b>arquivo inteiro</b> do GitHub Pages com este HTML completo (começa em <code>&lt;!DOCTYPE html&gt;</code>).
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        <!-- Painel rápido -->
-        <div class="card">
-          <div class="hd">
-            <h2>Painel rápido</h2>
-            <div class="hint">Controle de sessão + revisão de erros</div>
-          </div>
-
-          <div class="inputs">
-            <div class="row" style="justify-content:space-between;">
-              <span class="pill">Sessão atual <b id="sessionIdPill">—</b></span>
-              <div class="row">
-                <button class="btn" id="btnFirst">⏮️ Primeiro</button>
-                <button class="btn" id="btnLast">⏭️ Último</button>
-                <button class="btn" id="btnOnlyUnseen">👀 Só não vistos</button>
-                <button class="btn" id="btnClearFilters">🧹 Limpar filtros</button>
-              </div>
-            </div>
-
-            <div class="row" style="justify-content:space-between;">
-              <span class="pill">Revisão de erros (sessão) <b id="errCountPill">0</b></span>
-              <div class="row">
-                <button class="btn primary" id="btnStartReview">🧪 Começar revisão</button>
-                <button class="btn warn" id="btnClearErrors">🧽 Limpar lista de erros</button>
-              </div>
-            </div>
-
-            <div class="tiny">
-              Como adicionar suas questões rapidamente:<br/>
-              1) Abra <b>Gerenciar cards</b><br/>
-              2) Cole <b>questão + alternativas + gabarito</b><br/>
-              3) Salve. Pronto.
-            </div>
-          </div>
-        </div>
-
+      <div class="progress-bar">
+        <div class="progress-fill" id="uiProgressBar"></div>
       </div>
     </div>
 
-    <!-- MODAL GERENCIAR -->
-    <div class="modal" id="modalManage" aria-hidden="true">
-      <div class="modalBox">
-        <div class="modalHd">
-          <h3>Gerenciar cards</h3>
-          <div class="row">
-            <button class="btn" id="btnAddOne">➕ Novo</button>
-            <button class="btn" id="btnCloseManage">✖️ Fechar</button>
-          </div>
-        </div>
+    <div class="flashcard">
+      <div class="card-header">
+        <span id="uiCardId">ID: —</span>
+        <span id="uiCardSide">Frente (Pergunta)</span>
+      </div>
+      
+      <div class="card-body" id="uiCardContent">
+        Carregando...
+      </div>
 
-        <div class="modalBd">
-          <div class="card" style="padding:14px;">
-            <div class="label">Adicionar rapidamente (cole o bloco abaixo e clique em “Adicionar por texto”)</div>
-            <div class="split">
-              <div>
-                <div class="label">Ano</div>
-                <input class="input" id="inYear" placeholder="Ex.: 2020"/>
-              </div>
-              <div>
-                <div class="label">Área</div>
-                <input class="input" id="inArea" placeholder="Ex.: Humanas / Linguagens / Natureza / Matemática"/>
-              </div>
-            </div>
-
-            <div class="label">Bloco de texto (modelo livre)</div>
-            <textarea id="bulkText" placeholder="Cole aqui:
-
-(ENUNCIADO / TEXTO-BASE)
-
-A) alternativa...
-B) alternativa...
-C) alternativa...
-D) alternativa...
-E) alternativa...
-
-Gabarito: C
-Comentário: (opcional)"></textarea>
-
-            <div class="row">
-              <button class="btn primary" id="btnAddBulk">➕ Adicionar por texto</button>
-              <button class="btn" id="btnDemo">🎯 Inserir 1 demo</button>
-            </div>
-
-            <div class="tiny">
-              ✅ O parser entende “Gabarito: A/B/C/D/E”. Comentário é opcional.<br/>
-              ✅ Você pode colar sem “A)”, ele tenta inferir mesmo assim (mas com A–E fica 100%).
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="hd">
-              <h2>Cards salvos</h2>
-              <div class="hint">editar / apagar</div>
-            </div>
-            <div style="padding:14px;">
-              <table>
-                <thead>
-                  <tr>
-                    <th style="width:88px;">Ano</th>
-                    <th style="width:140px;">Área</th>
-                    <th>Enunciado (preview)</th>
-                    <th style="width:160px;">Ações</th>
-                  </tr>
-                </thead>
-                <tbody id="tblCards"></tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="tiny" style="padding:2px 2px 10px 2px;">
-            Dica: exporte JSON de tempos em tempos (backup).
-          </div>
-        </div>
+      <div class="controls">
+        <button class="btn" id="btnPrev">⬅️ Anterior</button>
+        <button class="btn primary" id="btnFlip">R — Mostrar Resposta</button>
+        <button class="btn hard" id="btnHard">🔥 Difícil</button>
+        <button class="btn" id="btnNext">Próximo ➡️</button>
       </div>
     </div>
 
-    <!-- MODAL EDITAR 1 CARD -->
-    <div class="modal" id="modalEdit" aria-hidden="true">
-      <div class="modalBox">
-        <div class="modalHd">
-          <h3>Editar card</h3>
-          <div class="row">
-            <button class="btn primary" id="btnSaveEdit">💾 Salvar</button>
-            <button class="btn" id="btnCloseEdit">✖️ Fechar</button>
-          </div>
-        </div>
-        <div class="modalBd">
-          <div class="split">
-            <div>
-              <div class="label">Ano</div>
-              <input class="input" id="edYear"/>
-            </div>
-            <div>
-              <div class="label">Área</div>
-              <input class="input" id="edArea"/>
-            </div>
-          </div>
-
-          <div>
-            <div class="label">Enunciado / Texto-base</div>
-            <textarea id="edStem"></textarea>
-          </div>
-
-          <div>
-            <div class="label">Alternativas (uma por linha)</div>
-            <textarea id="edAlts" placeholder="A) ...&#10;B) ...&#10;C) ...&#10;D) ...&#10;E) ..."></textarea>
-          </div>
-
-          <div class="split">
-            <div>
-              <div class="label">Gabarito (A–E)</div>
-              <input class="input" id="edAnswer" placeholder="Ex.: C"/>
-            </div>
-            <div>
-              <div class="label">Tags (opcional)</div>
-              <input class="input" id="edTags" placeholder="Ex.: cidadania, direitos, constituição"/>
-            </div>
-          </div>
-
-          <div>
-            <div class="label">Comentário / Explicação (opcional)</div>
-            <textarea id="edComment"></textarea>
-          </div>
-
-          <div class="tiny">
-            💡 O “Comentário” aparece no verso do card (junto do gabarito).
-          </div>
-        </div>
-      </div>
+    <div class="utility-bar">
+      <button class="btn" id="btnShuffle">🔀 Embaralhar</button>
+      <button class="btn" id="btnReviewHards">🔥 Revisar Apenas Difíceis</button>
+      <button class="btn" id="btnRestart">🔄 Reiniciar Sessão</button>
+      <button class="btn" id="btnExport">⬇️ Exportar Resultado</button>
     </div>
 
   </div>
 
+  <div id="exportCanvasTarget"></div>
+
   <script>
-    // ==========================
-    // STORAGE
-    // ==========================
-    const LS_KEY = "flashcard_enem_pro_v1";
-
-    const nowISODate = () => {
-      const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth()+1).padStart(2,'0');
-      const dd = String(d.getDate()).padStart(2,'0');
-      return `${yyyy}-${mm}-${dd}`;
+    /* =========================================================
+       1. BASE DE DADOS HARDCODED (Adicione suas questões aqui)
+       ========================================================= */
+    const DATABASE = {
+      "ENEM 2020 - Humanas": [
+        {
+          id: "Q01",
+          text: "A noção de cidadania moderna associa-se ao reconhecimento de direitos civis, políticos e sociais, vinculando-se a processos históricos de ampliação da participação.",
+          alts: [
+            "Predomínio do poder religioso sobre as instituições estatais.",
+            "Substituição da lei por decisões individuais.",
+            "Ampliação de direitos e participação na vida pública.",
+            "Supressão de conflitos sociais por coerção.",
+            "Eliminação de políticas redistributivas."
+          ],
+          answer: "C",
+          comment: "A cidadania moderna é fundamentada na expansão gradual de direitos (civis, depois políticos, e sociais) que garantem maior integração e voz do indivíduo na sociedade."
+        },
+        {
+          id: "Q02",
+          text: "No contexto da Revolução Industrial, as condições de trabalho nas fábricas inglesas do século XIX caracterizavam-se por:",
+          alts: [
+            "Jornadas reduzidas e altos salários.",
+            "Proteção estatal rigorosa ao trabalhador infantil.",
+            "Jornadas exaustivas, insalubridade e exploração de mulheres e crianças.",
+            "Igualdade salarial entre gêneros.",
+            "Ausência de acidentes de trabalho devido à tecnologia avançada."
+          ],
+          answer: "C",
+          comment: "A Primeira Revolução Industrial foi marcada por severa exploração laboral, longas jornadas e falta de qualquer legislação trabalhista de proteção."
+        }
+      ],
+      "ENEM 2020 - Natureza": [
+        {
+          id: "Q03",
+          text: "A fotossíntese é um processo fundamental para a manutenção da vida na Terra. Qual gás é consumido e qual é liberado na fase fotoquímica?",
+          alts: [
+            "Consome O2, libera CO2.",
+            "Consome CO2, libera O2.",
+            "Consome H2O, libera O2.",
+            "Consome N2, libera O2.",
+            "Consome CO2, libera CH4."
+          ],
+          answer: "C",
+          comment: "Na fase clara (fotoquímica), ocorre a fotólise da água (H2O), liberando gás oxigênio (O2) para o ambiente."
+        }
+      ]
     };
 
-    const genSessionId = () => `S-${nowISODate()}`;
-    const genId = () => `c_${Math.random().toString(36).slice(2,9)}_${Date.now().toString(36)}`;
+    /* =========================================================
+       2. ESTADO DA SESSÃO (Zera ao recarregar a página)
+       ========================================================= */
+    let currentDeckName = "";
+    let deckCards = [];
+    let currentIndex = 0;
+    let isFlipped = false;
+    
+    // Conjuntos para rastrear interações na sessão
+    let reviewedCards = new Set();
+    let hardCards = new Set();
 
-    const safeJSON = (s, fallback) => { try { return JSON.parse(s); } catch { return fallback; } };
-
-    const defaultState = () => ({
-      cards: [],
-      ui: {
-        search: "",
-        year: "Todos",
-        area: "Todos",
-        mode: "study", // study | review
-        onlyUnseen: false,
-        idx: 0,
-        side: "front", // front | back
-      },
-      session: {
-        id: genSessionId(),
-        seen: {},    // cardId: true
-        hits: 0,
-        miss: 0,
-        wrongSet: {}, // cardId: true (erros na sessão)
-      },
-      global: {
-        hits: 0,
-        miss: 0,
-        wrongSet: {}, // cardId: true (erros totais)
-      }
-    });
-
-    const load = () => {
-      const st = safeJSON(localStorage.getItem(LS_KEY), null);
-      if (!st) return defaultState();
-      // migrações simples/robustez
-      st.cards ||= [];
-      st.ui ||= defaultState().ui;
-      st.session ||= defaultState().session;
-      st.global ||= defaultState().global;
-      st.session.id ||= genSessionId();
-      st.session.seen ||= {};
-      st.session.wrongSet ||= {};
-      st.global.wrongSet ||= {};
-      return st;
+    /* =========================================================
+       3. ELEMENTOS DA UI
+       ========================================================= */
+    const els = {
+      deckSelector: document.getElementById('deckSelector'),
+      uiProgress: document.getElementById('uiProgress'),
+      uiReviewed: document.getElementById('uiReviewed'),
+      uiHardCount: document.getElementById('uiHardCount'),
+      uiProgressBar: document.getElementById('uiProgressBar'),
+      uiCardId: document.getElementById('uiCardId'),
+      uiCardSide: document.getElementById('uiCardSide'),
+      uiCardContent: document.getElementById('uiCardContent'),
+      btnPrev: document.getElementById('btnPrev'),
+      btnFlip: document.getElementById('btnFlip'),
+      btnHard: document.getElementById('btnHard'),
+      btnNext: document.getElementById('btnNext'),
+      btnShuffle: document.getElementById('btnShuffle'),
+      btnReviewHards: document.getElementById('btnReviewHards'),
+      btnRestart: document.getElementById('btnRestart'),
+      btnExport: document.getElementById('btnExport'),
+      exportCanvasTarget: document.getElementById('exportCanvasTarget')
     };
 
-    const save = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
-
-    let state = load();
-
-    // ==========================
-    // DOM HELPERS
-    // ==========================
-    const $ = (id) => document.getElementById(id);
-
-    // top / filters / stats
-    const qSearch = $("qSearch");
-    const fYear = $("fYear");
-    const fArea = $("fArea");
-
-    const stTotal = $("stTotal");
-    const stFiltered = $("stFiltered");
-    const stIndex = $("stIndex");
-    const stSide = $("stSide");
-    const stHits = $("stHits");
-    const stMiss = $("stMiss");
-    const stAcc = $("stAcc");
-
-    const metaYear = $("metaYear");
-    const metaArea = $("metaArea");
-    const metaId = $("metaId");
-
-    const bStem = $("bStem");
-    const bAlts = $("bAlts");
-    const bBack = $("bBack");
-
-    const sessionIdPill = $("sessionIdPill");
-    const errCountPill = $("errCountPill");
-
-    // buttons
-    const btnManage = $("btnManage");
-    const btnExportJSON = $("btnExportJSON");
-    const btnImportJSON = $("btnImportJSON");
-    const fileJSON = $("fileJSON");
-
-    const btnResetSession = $("btnResetSession");
-    const btnResetAll = $("btnResetAll");
-
-    const btnModeStudy = $("btnModeStudy");
-    const btnModeReview = $("btnModeReview");
-
-    const btnPrev = $("btnPrev");
-    const btnNext = $("btnNext");
-    const btnFlip = $("btnFlip");
-    const btnHit = $("btnHit");
-    const btnMiss = $("btnMiss");
-    const btnRandom = $("btnRandom");
-
-    const btnFirst = $("btnFirst");
-    const btnLast = $("btnLast");
-    const btnOnlyUnseen = $("btnOnlyUnseen");
-    const btnClearFilters = $("btnClearFilters");
-
-    const btnStartReview = $("btnStartReview");
-    const btnClearErrors = $("btnClearErrors");
-
-    const btnExportImage = $("btnExportImage");
-
-    // modals
-    const modalManage = $("modalManage");
-    const btnCloseManage = $("btnCloseManage");
-    const btnAddBulk = $("btnAddBulk");
-    const btnDemo = $("btnDemo");
-    const btnAddOne = $("btnAddOne");
-    const tblCards = $("tblCards");
-    const inYear = $("inYear");
-    const inArea = $("inArea");
-    const bulkText = $("bulkText");
-
-    const modalEdit = $("modalEdit");
-    const btnCloseEdit = $("btnCloseEdit");
-    const btnSaveEdit = $("btnSaveEdit");
-    const edYear = $("edYear");
-    const edArea = $("edArea");
-    const edStem = $("edStem");
-    const edAlts = $("edAlts");
-    const edAnswer = $("edAnswer");
-    const edTags = $("edTags");
-    const edComment = $("edComment");
-    let editingId = null;
-
-    // ==========================
-    // FILTERING / LIST
-    // ==========================
-    const normalizeArea = (s) => (s || "").trim();
-    const normalizeYear = (s) => (s || "").toString().trim();
-
-    const buildFilterOptions = () => {
-      const years = Array.from(new Set(state.cards.map(c => normalizeYear(c.year)).filter(Boolean))).sort();
-      const areas = Array.from(new Set(state.cards.map(c => normalizeArea(c.area)).filter(Boolean))).sort();
-
-      const ensure = (sel, values, current) => {
-        sel.innerHTML = "";
-        const optAll = document.createElement("option");
-        optAll.value = "Todos";
-        optAll.textContent = "Todos";
-        sel.appendChild(optAll);
-        values.forEach(v => {
-          const o = document.createElement("option");
-          o.value = v;
-          o.textContent = v;
-          sel.appendChild(o);
-        });
-        sel.value = values.includes(current) ? current : "Todos";
-      };
-
-      ensure(fYear, years, state.ui.year);
-      ensure(fArea, areas, state.ui.area);
-    };
-
-    const cardMatchesSearch = (c, q) => {
-      if (!q) return true;
-      const s = q.toLowerCase();
-      const hay = [
-        c.stem, ...(c.alts || []), c.comment || "", (c.tags || "").toString()
-      ].join(" ").toLowerCase();
-      return hay.includes(s);
-    };
-
-    const filteredCards = () => {
-      const q = (state.ui.search || "").trim();
-      const year = state.ui.year;
-      const area = state.ui.area;
-
-      let list = state.cards.slice();
-
-      if (year !== "Todos") list = list.filter(c => normalizeYear(c.year) === year);
-      if (area !== "Todos") list = list.filter(c => normalizeArea(c.area) === area);
-      if (q) list = list.filter(c => cardMatchesSearch(c, q));
-
-      if (state.ui.onlyUnseen){
-        list = list.filter(c => !state.session.seen[c.id]);
-      }
-
-      if (state.ui.mode === "review"){
-        // revisão usa a lista de erros da sessão (prioridade) - se vazia, usa erros totais
-        const pool = Object.keys(state.session.wrongSet || {}).length
-          ? state.session.wrongSet
-          : state.global.wrongSet;
-
-        list = list.filter(c => !!pool[c.id]);
-      }
-
-      return list;
-    };
-
-    const clampIndex = (list) => {
-      if (list.length === 0) { state.ui.idx = 0; return; }
-      if (state.ui.idx < 0) state.ui.idx = 0;
-      if (state.ui.idx > list.length - 1) state.ui.idx = list.length - 1;
-    };
-
-    const getCurrentCard = () => {
-      const list = filteredCards();
-      clampIndex(list);
-      return { list, card: list[state.ui.idx] || null };
-    };
-
-    // ==========================
-    // RENDER
-    // ==========================
-    const renderStats = () => {
-      const list = filteredCards();
-      stTotal.textContent = state.cards.length;
-      stFiltered.textContent = list.length;
-
-      const idxHuman = list.length ? (state.ui.idx + 1) : 0;
-      stIndex.textContent = `${idxHuman}/${list.length}`;
-
-      stSide.textContent = state.ui.side === "front" ? "Frente" : "Verso";
-
-      stHits.textContent = state.session.hits || 0;
-      stMiss.textContent = state.session.miss || 0;
-
-      const totalAns = (state.session.hits || 0) + (state.session.miss || 0);
-      const acc = totalAns ? Math.round((state.session.hits / totalAns) * 100) : 0;
-      stAcc.textContent = `${acc}%`;
-
-      sessionIdPill.textContent = state.session.id || "—";
-
-      const errCount = Object.keys(state.session.wrongSet || {}).length;
-      errCountPill.textContent = errCount;
-
-      // botões modo
-      btnModeStudy.classList.toggle("primary", state.ui.mode === "study");
-      btnModeReview.classList.toggle("primary", state.ui.mode === "review");
-
-      // só não vistos
-      btnOnlyUnseen.classList.toggle("primary", !!state.ui.onlyUnseen);
-    };
-
-    const renderCard = () => {
-      const { card } = getCurrentCard();
-
-      if (!card){
-        metaYear.textContent = "—";
-        metaArea.textContent = "—";
-        metaId.textContent = "—";
-        bStem.textContent = 'Nenhum card\n\nAdicione cards em "Gerenciar cards".';
-        bAlts.innerHTML = "";
-        bBack.textContent = "—";
-        return;
-      }
-
-      metaYear.textContent = card.year || "—";
-      metaArea.textContent = card.area || "—";
-      metaId.textContent = card.id || "—";
-
-      // marca como visto
-      state.session.seen[card.id] = true;
-      save();
-
-      // frente/verso
-      if (state.ui.side === "front"){
-        bStem.textContent = (card.stem || "—").trim();
-        bAlts.innerHTML = "";
-        const keys = ["A","B","C","D","E"];
-        (card.alts || []).forEach((t, i) => {
-          const div = document.createElement("div");
-          div.className = "alt";
-          div.innerHTML = `<div class="key">${keys[i] || "•"}</div><div>${escapeHTML(t || "").replace(/\n/g,"<br/>")}</div>`;
-          bAlts.appendChild(div);
-        });
-        bBack.textContent = "Vire o card para ver o gabarito.";
-      } else {
-        // verso: gabarito + comentário
-        const ansKey = (card.answer || "").toUpperCase().trim() || "—";
-        const comment = (card.comment || "").trim();
-        const tags = (card.tags || "").trim();
-
-        let txt = `Gabarito: ${ansKey}`;
-        if (comment) txt += `\n\nComentário:\n${comment}`;
-        if (tags) txt += `\n\nTags: ${tags}`;
-        bBack.textContent = txt;
-
-        // ainda mostra frente resumida
-        bStem.textContent = (card.stem || "—").trim();
-        bAlts.innerHTML = "";
-        const keys = ["A","B","C","D","E"];
-        (card.alts || []).forEach((t, i) => {
-          const div = document.createElement("div");
-          div.className = "alt";
-          div.innerHTML = `<div class="key">${keys[i] || "•"}</div><div>${escapeHTML(t || "").replace(/\n/g,"<br/>")}</div>`;
-          bAlts.appendChild(div);
-        });
-      }
-    };
-
-    const renderTable = () => {
-      tblCards.innerHTML = "";
-      const list = state.cards.slice().reverse(); // últimos no topo
-      list.forEach(c => {
-        const tr = document.createElement("tr");
-        const preview = (c.stem || "").trim().slice(0, 90).replace(/\s+/g, " ");
-        tr.innerHTML = `
-          <td>${escapeHTML(c.year || "")}</td>
-          <td>${escapeHTML(c.area || "")}</td>
-          <td>${escapeHTML(preview)}${preview.length>=90 ? "…" : ""}</td>
-          <td>
-            <div class="row">
-              <button class="btn" data-act="edit" data-id="${c.id}">✏️ Editar</button>
-              <button class="btn bad" data-act="del" data-id="${c.id}">🗑️</button>
-            </div>
-          </td>
-        `;
-        tblCards.appendChild(tr);
+    /* =========================================================
+       4. LÓGICA DE NAVEGAÇÃO E RENDERIZAÇÃO
+       ========================================================= */
+    function init() {
+      // Popular select de decks
+      els.deckSelector.innerHTML = "";
+      Object.keys(DATABASE).forEach(deck => {
+        const opt = document.createElement('option');
+        opt.value = deck;
+        opt.textContent = deck;
+        els.deckSelector.appendChild(opt);
       });
-    };
 
-    const renderAll = () => {
-      buildFilterOptions();
-      qSearch.value = state.ui.search || "";
-      fYear.value = state.ui.year || "Todos";
-      fArea.value = state.ui.area || "Todos";
-      renderStats();
+      // Carregar primeiro deck
+      loadDeck(els.deckSelector.value);
+
+      // Event Listeners UI
+      els.deckSelector.addEventListener('change', (e) => loadDeck(e.target.value));
+      els.btnFlip.addEventListener('click', toggleFlip);
+      els.btnPrev.addEventListener('click', () => navigate(-1));
+      els.btnNext.addEventListener('click', () => navigate(1));
+      els.btnHard.addEventListener('click', toggleHard);
+      els.btnShuffle.addEventListener('click', shuffleDeck);
+      els.btnRestart.addEventListener('click', () => loadDeck(currentDeckName));
+      els.btnReviewHards.addEventListener('click', startHardReview);
+      els.btnExport.addEventListener('click', exportResultPNG);
+
+      // Atalhos de teclado
+      document.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'r') { e.preventDefault(); toggleFlip(); }
+        if (e.key === 'ArrowRight') navigate(1);
+        if (e.key === 'ArrowLeft') navigate(-1);
+      });
+    }
+
+    function loadDeck(deckName, customCardsArray = null) {
+      currentDeckName = deckName;
+      deckCards = customCardsArray ? [...customCardsArray] : [...DATABASE[deckName]];
+      
+      // Se não for revisão de difíceis, zera a sessão
+      if (!customCardsArray) {
+        reviewedCards.clear();
+        hardCards.clear();
+      }
+      
+      currentIndex = 0;
+      isFlipped = false;
       renderCard();
-    };
-
-    // ==========================
-    // UTIL
-    // ==========================
-    function escapeHTML(str){
-      return (str || "")
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#039;");
     }
 
-    function toast(msg){
-      // toast minimalista via alert (sem poluir UI)
-      alert(msg);
-    }
-
-    // parser do bloco colado
-    function parseBulk(text){
-      const raw = (text || "").trim();
-      if (!raw) return null;
-
-      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length>0);
-
-      // tenta achar gabarito
-      let answer = "";
-      let comment = "";
-      let answerIdx = lines.findIndex(l => /^gabarito\s*:?\s*[A-E]/i.test(l));
-      if (answerIdx >= 0){
-        const m = lines[answerIdx].match(/([A-E])/i);
-        answer = m ? m[1].toUpperCase() : "";
-        // o resto vira comentário (se houver)
-        const after = lines.slice(answerIdx+1).join("\n").trim();
-        if (after) comment = after.replace(/^coment[aá]rio\s*:?\s*/i, "").trim();
+    function renderCard() {
+      if (deckCards.length === 0) {
+        els.uiCardContent.innerHTML = "Nenhum card disponível neste modo.";
+        els.uiCardId.textContent = "—";
+        updateProgress();
+        return;
       }
 
-      // alternativas: linhas iniciando por A) / A. / A -
-      const altRe = /^([A-E])\s*[\)\.\-:]\s*(.+)$/i;
-      const alts = [];
-      const altMap = {};
-      let firstAltIdx = -1;
+      const card = deckCards[currentIndex];
+      
+      // Marcar como revisado ao exibir a frente
+      reviewedCards.add(card.id);
+      
+      els.uiCardId.textContent = `Card: ${card.id}`;
+      els.btnHard.classList.toggle('active', hardCards.has(card.id));
 
-      for (let i=0; i<lines.length; i++){
-        const m = lines[i].match(altRe);
-        if (m){
-          if (firstAltIdx === -1) firstAltIdx = i;
-          altMap[m[1].toUpperCase()] = m[2].trim();
+      if (!isFlipped) {
+        // FRENTE
+        els.uiCardSide.textContent = "Frente (Pergunta)";
+        els.btnFlip.textContent = "R — Mostrar Resposta";
+        
+        let html = `<div>${card.text.replace(/\n/g, '<br/>')}</div>`;
+        if (card.alts && card.alts.length > 0) {
+          html += `<div class="alts">`;
+          const keys = ["A","B","C","D","E"];
+          card.alts.forEach((alt, i) => {
+            html += `<div class="alt"><span class="key">${keys[i]})</span><span>${alt}</span></div>`;
+          });
+          html += `</div>`;
         }
-      }
-
-      const keys = ["A","B","C","D","E"];
-      keys.forEach(k => { if (altMap[k]) alts.push(altMap[k]); });
-
-      // enunciado: tudo antes da primeira alternativa (ou antes do gabarito se não achar alternativas)
-      let stemEnd = firstAltIdx >= 0 ? firstAltIdx : (answerIdx >= 0 ? answerIdx : lines.length);
-      const stem = lines.slice(0, stemEnd).join("\n").trim();
-
-      if (!stem) return null;
-
-      // se não achou 5 alternativas, permite salvar mesmo assim, mas recomenda A–E
-      return { stem, alts, answer, comment };
-    }
-
-    // ==========================
-    // ACTIONS
-    // ==========================
-    function go(delta){
-      const list = filteredCards();
-      if (!list.length) { renderAll(); return; }
-      state.ui.idx += delta;
-      clampIndex(list);
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    function flip(){
-      state.ui.side = state.ui.side === "front" ? "back" : "front";
-      save();
-      renderAll();
-    }
-
-    function goFirst(){
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    function goLast(){
-      const list = filteredCards();
-      state.ui.idx = list.length ? (list.length - 1) : 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    function randomPick(){
-      const list = filteredCards();
-      if (!list.length) return;
-      state.ui.idx = Math.floor(Math.random() * list.length);
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    function mark(hit){
-      const { card } = getCurrentCard();
-      if (!card) return;
-
-      if (hit){
-        state.session.hits = (state.session.hits || 0) + 1;
-        state.global.hits = (state.global.hits || 0) + 1;
-
-        // se acertou, pode remover do wrongSet da sessão (opcional: aqui vamos manter se já errou antes)
+        els.uiCardContent.innerHTML = html;
       } else {
-        state.session.miss = (state.session.miss || 0) + 1;
-        state.global.miss = (state.global.miss || 0) + 1;
-
-        state.session.wrongSet[card.id] = true;
-        state.global.wrongSet[card.id] = true;
-      }
-
-      save();
-      // auto avança
-      go(1);
-    }
-
-    function resetSession(){
-      state.session = {
-        id: genSessionId(),
-        seen: {},
-        hits: 0,
-        miss: 0,
-        wrongSet: {}
-      };
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-      toast("Sessão resetada ✅");
-    }
-
-    function resetAll(){
-      if (!confirm("Reset TOTAL: apaga cards + estatísticas + erros. Confirma?")) return;
-      state = defaultState();
-      save();
-      renderAll();
-      toast("Reset total feito ✅");
-    }
-
-    function exportJSON(){
-      const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `flashcard_enem_pro_backup_${nowISODate()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
-    }
-
-    function importJSONFile(file){
-      const reader = new FileReader();
-      reader.onload = () => {
-        const obj = safeJSON(reader.result, null);
-        if (!obj || typeof obj !== "object"){
-          toast("JSON inválido.");
-          return;
+        // VERSO
+        els.uiCardSide.textContent = "Verso (Resposta)";
+        els.btnFlip.textContent = "R — Mostrar Pergunta";
+        
+        let html = `<div><strong style="color:var(--accent); font-size:18px;">Gabarito: ${card.answer}</strong></div>`;
+        if (card.comment) {
+          html += `<div style="margin-top:20px;"><strong>Comentário:</strong><br/>${card.comment.replace(/\n/g, '<br/>')}</div>`;
         }
-        // substitui tudo (mais seguro)
-        state = obj;
-        // garante campos
-        state.cards ||= [];
-        state.ui ||= defaultState().ui;
-        state.session ||= defaultState().session;
-        state.global ||= defaultState().global;
-        state.session.id ||= genSessionId();
-        state.session.seen ||= {};
-        state.session.wrongSet ||= {};
-        state.global.wrongSet ||= {};
-        save();
-        renderAll();
-        toast("Importado ✅");
-      };
-      reader.readAsText(file);
-    }
-
-    function setMode(mode){
-      state.ui.mode = mode;
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    function startReview(){
-      // se não houver erros, tenta usar global
-      const hasSessionErrors = Object.keys(state.session.wrongSet || {}).length > 0;
-      const hasGlobalErrors = Object.keys(state.global.wrongSet || {}).length > 0;
-
-      if (!hasSessionErrors && !hasGlobalErrors){
-        toast("Sem erros para revisar ainda.");
-        return;
-      }
-      setMode("review");
-    }
-
-    function clearErrors(){
-      if (!confirm("Limpar lista de erros da sessão?")) return;
-      state.session.wrongSet = {};
-      save();
-      renderAll();
-      toast("Erros da sessão limpos ✅");
-    }
-
-    function clearFilters(){
-      state.ui.search = "";
-      state.ui.year = "Todos";
-      state.ui.area = "Todos";
-      state.ui.onlyUnseen = false;
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    function toggleOnlyUnseen(){
-      state.ui.onlyUnseen = !state.ui.onlyUnseen;
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    }
-
-    // ==========================
-    // MANAGE MODAL
-    // ==========================
-    function openManage(){
-      modalManage.classList.add("show");
-      renderTable();
-    }
-    function closeManage(){
-      modalManage.classList.remove("show");
-    }
-
-    function openEdit(cardId){
-      const c = state.cards.find(x => x.id === cardId);
-      if (!c) return;
-      editingId = cardId;
-      edYear.value = c.year || "";
-      edArea.value = c.area || "";
-      edStem.value = c.stem || "";
-      edAlts.value = (c.alts || []).map((t,i)=> `${["A","B","C","D","E"][i]}) ${t}`).join("\n");
-      edAnswer.value = (c.answer || "").toUpperCase().trim();
-      edTags.value = c.tags || "";
-      edComment.value = c.comment || "";
-      modalEdit.classList.add("show");
-    }
-    function closeEdit(){
-      modalEdit.classList.remove("show");
-      editingId = null;
-    }
-
-    function saveEdit(){
-      if (!editingId) return;
-      const c = state.cards.find(x => x.id === editingId);
-      if (!c) return;
-
-      c.year = normalizeYear(edYear.value);
-      c.area = normalizeArea(edArea.value);
-      c.stem = (edStem.value || "").trim();
-
-      // alternativas: pega linha e remove prefixos A) etc
-      const lines = (edAlts.value || "").split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-      const alts = lines.map(l => l.replace(/^([A-E])\s*[\)\.\-:]\s*/i, "").trim()).filter(Boolean);
-      c.alts = alts;
-
-      c.answer = (edAnswer.value || "").trim().toUpperCase().slice(0,1);
-      c.tags = (edTags.value || "").trim();
-      c.comment = (edComment.value || "").trim();
-
-      save();
-      renderAll();
-      renderTable();
-      toast("Card salvo ✅");
-      closeEdit();
-    }
-
-    function deleteCard(cardId){
-      if (!confirm("Apagar este card?")) return;
-      state.cards = state.cards.filter(x => x.id !== cardId);
-
-      delete state.session.seen[cardId];
-      delete state.session.wrongSet[cardId];
-      delete state.global.wrongSet[cardId];
-
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-      renderTable();
-    }
-
-    function addFromBulk(){
-      const yr = normalizeYear(inYear.value);
-      const ar = normalizeArea(inArea.value);
-      const parsed = parseBulk(bulkText.value);
-      if (!parsed){
-        toast("Não consegui entender o bloco. Garanta enunciado + A–E + Gabarito.");
-        return;
+        els.uiCardContent.innerHTML = html;
       }
 
-      const card = {
-        id: genId(),
-        year: yr || "",
-        area: ar || "",
-        stem: parsed.stem,
-        alts: parsed.alts || [],
-        answer: (parsed.answer || "").toUpperCase().trim(),
-        comment: parsed.comment || "",
-        tags: ""
-      };
-
-      state.cards.push(card);
-      bulkText.value = "";
-      save();
-      buildFilterOptions();
-      renderTable();
-      renderAll();
-      toast("Card adicionado ✅");
+      updateProgress();
     }
 
-    function addDemo(){
-      inYear.value = inYear.value || "2020";
-      inArea.value = inArea.value || "Humanas";
-      bulkText.value =
-`Texto-base: A noção de cidadania moderna associa-se ao reconhecimento de direitos civis, políticos e sociais, vinculando-se a processos históricos de ampliação da participação e do acesso a garantias fundamentais.
-
-A) Trata-se do predomínio do poder religioso sobre as instituições estatais.
-B) Refere-se à substituição da lei por decisões individuais sem mediação institucional.
-C) Relaciona-se à ampliação de direitos e participação na vida pública.
-D) Corresponde à supressão de conflitos sociais por mecanismos coercitivos.
-E) Consiste na eliminação de políticas redistributivas em nome da liberdade econômica.
-
-Gabarito: C
-Comentário: Cidadania moderna envolve expansão de direitos e participação social/política.`;
+    function navigate(delta) {
+      if (deckCards.length === 0) return;
+      currentIndex += delta;
+      
+      // Loop infinito (se passar do último volta pro primeiro e vice-versa)
+      if (currentIndex >= deckCards.length) currentIndex = 0;
+      if (currentIndex < 0) currentIndex = deckCards.length - 1;
+      
+      isFlipped = false;
+      renderCard();
     }
 
-    function addOneEmpty(){
-      const card = {
-        id: genId(),
-        year: "",
-        area: "",
-        stem: "",
-        alts: ["","","","",""],
-        answer: "",
-        comment: "",
-        tags: ""
-      };
-      state.cards.push(card);
-      save();
-      renderAll();
-      renderTable();
-      openEdit(card.id);
+    function toggleFlip() {
+      if (deckCards.length === 0) return;
+      isFlipped = !isFlipped;
+      renderCard();
     }
 
-    // ==========================
-    // EXPORT IMAGE
-    // ==========================
-    async function exportResultImage(){
-      // captura só o bloco de estatísticas (mais limpo) + título
-      const box = document.createElement("div");
-      box.style.padding = "16px";
-      box.style.border = "1px solid rgba(255,255,255,.10)";
-      box.style.borderRadius = "18px";
-      box.style.background = "rgba(9,14,26,.92)";
-      box.style.color = "#eaf0ff";
-      box.style.fontFamily = "Inter, system-ui, sans-serif";
-      box.style.maxWidth = "760px";
+    function toggleHard() {
+      if (deckCards.length === 0) return;
+      const cardId = deckCards[currentIndex].id;
+      
+      if (hardCards.has(cardId)) {
+        hardCards.delete(cardId);
+      } else {
+        hardCards.add(cardId);
+      }
+      renderCard(); // Atualiza cor do botão e contadores
+    }
+
+    function updateProgress() {
+      const total = deckCards.length;
+      const current = total > 0 ? currentIndex + 1 : 0;
+      const revCount = reviewedCards.size;
+      const pct = total > 0 ? (revCount / total) * 100 : 0;
+
+      els.uiProgress.textContent = `${current} / ${total}`;
+      els.uiReviewed.textContent = revCount;
+      els.uiHardCount.textContent = hardCards.size;
+      els.uiProgressBar.style.width = `${pct}%`;
+    }
+
+    function shuffleDeck() {
+      if (deckCards.length === 0) return;
+      // Algoritmo Fisher-Yates
+      for (let i = deckCards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [deckCards[i], deckCards[j]] = [deckCards[j], deckCards[i]];
+      }
+      currentIndex = 0;
+      isFlipped = false;
+      renderCard();
+    }
+
+    function startHardReview() {
+      if (hardCards.size === 0) {
+        alert("Nenhum card marcado como difícil nesta sessão.");
+        return;
+      }
+      // Filtra o banco base do deck atual para pegar apenas os IDs difíceis
+      const hardsArray = DATABASE[currentDeckName].filter(c => hardCards.has(c.id));
+      loadDeck(currentDeckName + " (Revisão)", hardsArray);
+    }
+
+    /* =========================================================
+       5. EXPORTAÇÃO (SESSÃO)
+       ========================================================= */
+    async function exportResultPNG() {
+      if (deckCards.length === 0) return;
+      
+      const now = new Date();
+      const dateStr = now.toLocaleDateString() + " às " + now.toLocaleTimeString();
+
+      const box = document.createElement('div');
+      box.style.background = '#0c172a';
+      box.style.color = '#eaf0ff';
+      box.style.padding = '30px';
+      box.style.borderRadius = '18px';
+      box.style.border = '2px solid rgba(96,165,250,0.5)';
+      box.style.fontFamily = 'Inter, sans-serif';
+      box.style.width = '600px';
+
+      let hardsList = Array.from(hardCards).join(', ') || 'Nenhum';
 
       box.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div style="width:36px;height:36px;border-radius:14px;display:flex;align-items:center;justify-content:center;
-            background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);">🧠</div>
-          <div style="display:flex;flex-direction:column;gap:2px;">
-            <div style="font-weight:900;">Flashcard Pro ENEM</div>
-            <div style="opacity:.75;font-size:12px;">Resultado da sessão • ${state.session.id}</div>
-          </div>
+        <h2 style="margin: 0 0 5px 0; color: #60a5fa;">🧠 Resultado da Sessão</h2>
+        <p style="margin: 0 0 20px 0; opacity: 0.7; font-size: 14px;">${dateStr}</p>
+        
+        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+          <p style="margin: 5px 0;"><strong>Deck:</strong> ${currentDeckName}</p>
+          <p style="margin: 5px 0;"><strong>Total no Deck:</strong> ${deckCards.length}</p>
+          <p style="margin: 5px 0;"><strong>Cards Revisados:</strong> ${reviewedCards.size}</p>
+          <p style="margin: 5px 0; color: #ef4444;"><strong>Marcados como Difícil:</strong> ${hardCards.size}</p>
         </div>
 
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <div style="padding:8px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-weight:800;">
-            ✅ Acertos: <span style="color:#fff;">${state.session.hits || 0}</span>
-          </div>
-          <div style="padding:8px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-weight:800;">
-            ❌ Erros: <span style="color:#fff;">${state.session.miss || 0}</span>
-          </div>
-          <div style="padding:8px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-weight:800;">
-            🎯 Precisão: <span style="color:#fff;">${(() => {
-              const t = (state.session.hits||0)+(state.session.miss||0);
-              return t ? Math.round((state.session.hits/t)*100) : 0;
-            })()}%</span>
-          </div>
-          <div style="padding:8px 10px;border-radius:14px;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);font-weight:800;">
-            🧪 Erros na sessão: <span style="color:#fff;">${Object.keys(state.session.wrongSet||{}).length}</span>
-          </div>
-        </div>
-
-        <div style="margin-top:10px;opacity:.70;font-size:12px;">
-          Total de cards: ${state.cards.length} • Gerado em ${nowISODate()}
+        <div>
+          <h3 style="margin-bottom: 10px; font-size: 16px;">IDs Difíceis para revisar futuramente:</h3>
+          <p style="background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3); font-family: monospace; font-size: 14px; word-wrap: break-word;">
+            ${hardsList}
+          </p>
         </div>
       `;
 
-      document.body.appendChild(box);
+      els.exportCanvasTarget.appendChild(box);
 
-      try{
+      try {
+        els.btnExport.textContent = "Gerando...";
         const canvas = await html2canvas(box, { backgroundColor: null, scale: 2 });
+        const dataUrl = canvas.toDataURL("image/png");
+        
         const a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
-        a.download = `resultado_flashcard_enem_${state.session.id}.png`;
-        document.body.appendChild(a);
+        a.href = dataUrl;
+        a.download = `Sessao_Flashcard_${now.getTime()}.png`;
         a.click();
-        a.remove();
+      } catch (err) {
+        console.error("Erro ao gerar imagem:", err);
+        alert("Erro ao exportar. Tente novamente.");
       } finally {
-        box.remove();
+        els.exportCanvasTarget.innerHTML = "";
+        els.btnExport.textContent = "⬇️ Exportar Resultado";
       }
     }
 
-    // ==========================
-    // EVENTS
-    // ==========================
-    qSearch.addEventListener("input", (e)=>{
-      state.ui.search = e.target.value;
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    });
-
-    fYear.addEventListener("change", (e)=>{
-      state.ui.year = e.target.value;
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    });
-
-    fArea.addEventListener("change", (e)=>{
-      state.ui.area = e.target.value;
-      state.ui.idx = 0;
-      state.ui.side = "front";
-      save();
-      renderAll();
-    });
-
-    btnManage.addEventListener("click", openManage);
-    btnCloseManage.addEventListener("click", closeManage);
-
-    btnExportJSON.addEventListener("click", exportJSON);
-    btnImportJSON.addEventListener("click", ()=> fileJSON.click());
-    fileJSON.addEventListener("change", (e)=>{
-      const f = e.target.files && e.target.files[0];
-      if (f) importJSONFile(f);
-      e.target.value = "";
-    });
-
-    btnResetSession.addEventListener("click", resetSession);
-    btnResetAll.addEventListener("click", resetAll);
-
-    btnModeStudy.addEventListener("click", ()=> setMode("study"));
-    btnModeReview.addEventListener("click", ()=> setMode("review"));
-
-    btnPrev.addEventListener("click", ()=> go(-1));
-    btnNext.addEventListener("click", ()=> go(1));
-    btnFlip.addEventListener("click", flip);
-    btnHit.addEventListener("click", ()=> mark(true));
-    btnMiss.addEventListener("click", ()=> mark(false));
-    btnRandom.addEventListener("click", randomPick);
-
-    btnFirst.addEventListener("click", goFirst);
-    btnLast.addEventListener("click", goLast);
-    btnOnlyUnseen.addEventListener("click", toggleOnlyUnseen);
-    btnClearFilters.addEventListener("click", clearFilters);
-
-    btnStartReview.addEventListener("click", startReview);
-    btnClearErrors.addEventListener("click", clearErrors);
-
-    btnExportImage.addEventListener("click", exportResultImage);
-
-    btnAddBulk.addEventListener("click", addFromBulk);
-    btnDemo.addEventListener("click", addDemo);
-    btnAddOne.addEventListener("click", addOneEmpty);
-
-    // tabela ações
-    tblCards.addEventListener("click", (e)=>{
-      const btn = e.target.closest("button");
-      if (!btn) return;
-      const id = btn.getAttribute("data-id");
-      const act = btn.getAttribute("data-act");
-      if (!id || !act) return;
-
-      if (act === "edit") openEdit(id);
-      if (act === "del") deleteCard(id);
-    });
-
-    // editar modal
-    btnCloseEdit.addEventListener("click", closeEdit);
-    btnSaveEdit.addEventListener("click", saveEdit);
-
-    // fecha modal clicando fora
-    modalManage.addEventListener("click", (e)=>{
-      if (e.target === modalManage) closeManage();
-    });
-    modalEdit.addEventListener("click", (e)=>{
-      if (e.target === modalEdit) closeEdit();
-    });
-
-    // atalhos teclado
-    document.addEventListener("keydown", (e)=>{
-      // se modal aberto, não bagunça
-      const anyModal = modalManage.classList.contains("show") || modalEdit.classList.contains("show");
-      if (anyModal) return;
-
-      if (e.code === "Space"){
-        e.preventDefault();
-        flip();
-      }
-      if (e.key === "ArrowLeft") go(-1);
-      if (e.key === "ArrowRight") go(1);
-      if (e.key.toLowerCase() === "r") resetSession();
-    });
-
-    // ==========================
-    // BOOT
-    // ==========================
-    // se sessão for de dia anterior, mantém (por intenção); você pode resetar quando quiser
-    renderAll();
+    // Inicialização
+    init();
   </script>
 </body>
-</html>B) / “1.” — o importante é ter 5 alternativas e um gabarito.
-            </div>
-
-            <div class="spacer"></div>
-
-            <div class="panel">
-              <div class="panelTitle">📋 Lista de cards (editável)</div>
-              <div class="panelSub">Dica: clique em um card para editar; use 🗑 para remover.</div>
-
-              <div id="cardsList" class="cardsList"></div>
-
-              <div class="spacerSm"></div>
-
-              <div class="row wrap">
-                <button class="btn" id="btnCloseManage">✅ Fechar</button>
-                <button class="btn danger" id="btnResetCards">🧨 Apagar TODOS os cards</button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- MODAL: ADD BULK -->
-        <div class="modal" id="modalBulk" aria-hidden="true">
-          <div class="modalBox">
-            <div class="modalHead">
-              <div>
-                <div class="modalTitle">➕ Adicionar por texto</div>
-                <div class="modalSub">Cole 1 ou vários cards no formato ENEM.</div>
-              </div>
-              <button class="iconBtn" id="btnCloseBulk" title="Fechar">✕</button>
-            </div>
-
-            <div class="modalBody">
-              <div class="tiny">
-                Formato esperado (exemplo):
-                <div class="codeMini">
-Q12 — (Ano: 2020) (Área: Humanas)
-Texto-base…
-A) …
-B) …
-C) …
-D) …
-E) …
-Gabarito: D
-Comentário: (opcional)
-                </div>
-              </div>
-
-              <div class="row wrap">
-                <input class="input" id="bulkYear" placeholder="Ano (opcional) ex: 2020" inputmode="numeric" />
-                <input class="input" id="bulkArea" placeholder="Área (opcional) ex: Humanas" />
-              </div>
-
-              <textarea id="bulkText" class="textarea" placeholder="Cole aqui..."></textarea>
-
-              <div class="row wrap">
-                <button class="btn primary" id="btnParseBulk">✅ Processar e adicionar</button>
-                <button class="btn" id="btnClearBulk">🧽 Limpar</button>
-              </div>
-
-              <div class="tiny" id="bulkResult"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TOAST -->
-        <div class="toast" id="toast" role="status" aria-live="polite"></div>
-
-      </div>
-    </div>
-
-    <script>
-      // =========================================================
-      // STATE
-      // =========================================================
-      const DEFAULT_STATE = {
-        version: 2,
-        cards: [],
-        stats: {
-          correctTotal: 0,
-          wrongTotal: 0
-        },
-        session: {
-          id: null,
-          correct: 0,
-          wrong: 0,
-          // seen: { [cardId]: true }
-          seen: {}
-        },
-        ui: {
-          search: "",
-          year: "Todos",
-          area: "Todos",
-          mode: "study", // study | errors
-          onlyUnseen: false
-        },
-        errors: {
-          // sessionWrong: [cardId,...] (ordem de erro)
-          sessionWrong: []
-        }
-      };
-
-      const state = loadState() || structuredClone(DEFAULT_STATE);
-
-      // Ensure keys exist (migrações simples)
-      if (!state.version) state.version = 2;
-      if (!state.cards) state.cards = [];
-      if (!state.stats) state.stats = { correctTotal: 0, wrongTotal: 0 };
-      if (!state.session) state.session = { id: null, correct: 0, wrong: 0, seen: {} };
-      if (!state.ui) state.ui = { search: "", year: "Todos", area: "Todos", mode: "study", onlyUnseen: false };
-      if (!state.errors) state.errors = { sessionWrong: [] };
-      if (!state.session.seen) state.session.seen = {};
-      if (!Array.isArray(state.errors.sessionWrong)) state.errors.sessionWrong = [];
-
-      // =========================================================
-      // DOM HELPERS
-      // =========================================================
-      const els = {
-        // main
-        btnManage: document.getElementById("btnManage"),
-        btnExportJson: document.getElementById("btnExportJson"),
-        btnImportJson: document.getElementById("btnImportJson"),
-        fileImport: document.getElementById("fileImport"),
-        btnResetSession: document.getElementById("btnResetSession"),
-        btnResetAll: document.getElementById("btnResetAll"),
-        search: document.getElementById("searchInput"),
-        yearSelect: document.getElementById("yearSelect"),
-        areaSelect: document.getElementById("areaSelect"),
-        btnModeStudy: document.getElementById("btnModeStudy"),
-        btnModeErrors: document.getElementById("btnModeErrors"),
-        badgeTotal: document.getElementById("badgeTotal"),
-        badgeFiltered: document.getElementById("badgeFiltered"),
-        badgeCardIndex: document.getElementById("badgeCardIndex"),
-        badgeFace: document.getElementById("badgeFace"),
-        badgeCorrect: document.getElementById("badgeCorrect"),
-        badgeWrong: document.getElementById("badgeWrong"),
-        badgeAccuracy: document.getElementById("badgeAccuracy"),
-        btnExportImage: document.getElementById("btnExportImage"),
-
-        qYear: document.getElementById("qYear"),
-        qArea: document.getElementById("qArea"),
-        qId: document.getElementById("qId"),
-        btnPrev: document.getElementById("btnPrev"),
-        btnFlip: document.getElementById("btnFlip"),
-        btnNext: document.getElementById("btnNext"),
-
-        cardFront: document.getElementById("cardFront"),
-        cardBack: document.getElementById("cardBack"),
-        cardText: document.getElementById("cardText"),
-        cardAlts: document.getElementById("cardAlts"),
-        cardAnswer: document.getElementById("cardAnswer"),
-        cardComment: document.getElementById("cardComment"),
-
-        btnCorrect: document.getElementById("btnCorrect"),
-        btnWrong: document.getElementById("btnWrong"),
-
-        // quick panel
-        sessionId: document.getElementById("sessionId"),
-        btnFirst: document.getElementById("btnFirst"),
-        btnLast: document.getElementById("btnLast"),
-        btnOnlyUnseen: document.getElementById("btnOnlyUnseen"),
-        btnClearFilters: document.getElementById("btnClearFilters"),
-        sessionErrorsCount: document.getElementById("sessionErrorsCount"),
-        btnStartReview: document.getElementById("btnStartReview"),
-        btnClearErrors: document.getElementById("btnClearErrors"),
-
-        // modals
-        modalManage: document.getElementById("modalManage"),
-        btnCloseManage: document.getElementById("btnCloseManage"),
-        cardsList: document.getElementById("cardsList"),
-        btnAddBulk: document.getElementById("btnAddBulk"),
-        btnDemo: document.getElementById("btnDemo"),
-        btnResetCards: document.getElementById("btnResetCards"),
-
-        modalBulk: document.getElementById("modalBulk"),
-        btnCloseBulk: document.getElementById("btnCloseBulk"),
-        bulkYear: document.getElementById("bulkYear"),
-        bulkArea: document.getElementById("bulkArea"),
-        bulkText: document.getElementById("bulkText"),
-        btnParseBulk: document.getElementById("btnParseBulk"),
-        btnClearBulk: document.getElementById("btnClearBulk"),
-        bulkResult: document.getElementById("bulkResult"),
-
-        toast: document.getElementById("toast")
-      };
-
-      function showToast(msg) {
-        els.toast.textContent = msg;
-        els.toast.classList.add("show");
-        clearTimeout(showToast._t);
-        showToast._t = setTimeout(() => els.toast.classList.remove("show"), 2400);
-      }
-
-      function openModal(modalEl) {
-        modalEl.classList.add("open");
-        modalEl.setAttribute("aria-hidden", "false");
-        document.body.classList.add("modalOpen");
-      }
-      function closeModal(modalEl) {
-        modalEl.classList.remove("open");
-        modalEl.setAttribute("aria-hidden", "true");
-        document.body.classList.remove("modalOpen");
-      }
-
-      // =========================================================
-      // SESSION
-      // =========================================================
-      function todayISO() {
-        const d = new Date();
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${day}`;
-      }
-
-      function ensureSession() {
-        const id = `S-${todayISO()}`;
-        if (!state.session.id) state.session.id = id;
-        if (state.session.id !== id) {
-          // nova data => nova sessão automática (mantém estatísticas totais)
-          state.session.id = id;
-          state.session.correct = 0;
-          state.session.wrong = 0;
-          state.session.seen = {};
-          state.errors.sessionWrong = [];
-        }
-        els.sessionId.textContent = state.session.id;
-      }
-
-      // =========================================================
-      // FILTERS / VIEW MODEL
-      // =========================================================
-      let view = {
-        filtered: [],
-        index: 0,
-        face: "front" // front | back
-      };
-
-      function getYears() {
-        const set = new Set(state.cards.map(c => (c.year || "").trim()).filter(Boolean));
-        return Array.from(set).sort();
-      }
-      function getAreas() {
-        const set = new Set(state.cards.map(c => (c.area || "").trim()).filter(Boolean));
-        return Array.from(set).sort();
-      }
-
-      function rebuildFilterOptions() {
-        const years = getYears();
-        const areas = getAreas();
-
-        const yearVal = state.ui.year || "Todos";
-        const areaVal = state.ui.area || "Todos";
-
-        els.yearSelect.innerHTML = `<option>Todos</option>` + years.map(y => `<option>${escapeHtml(y)}</option>`).join("");
-        els.areaSelect.innerHTML = `<option>Todos</option>` + areas.map(a => `<option>${escapeHtml(a)}</option>`).join("");
-
-        // re-aplica seleção se existir
-        els.yearSelect.value = years.includes(yearVal) ? yearVal : "Todos";
-        els.areaSelect.value = areas.includes(areaVal) ? areaVal : "Todos";
-      }
-
-      function applyFilters() {
-        const q = (state.ui.search || "").trim().toLowerCase();
-        const year = state.ui.year || "Todos";
-        const area = state.ui.area || "Todos";
-        const onlyUnseen = !!state.ui.onlyUnseen;
-
-        let arr = [...state.cards];
-
-        // modo revisão de erros: base vira lista de erros da sessão
-        if (state.ui.mode === "errors") {
-          const set = new Set(state.errors.sessionWrong);
-          arr = arr.filter(c => set.has(c.id));
-          // mantém ordem de erro (ordem de inclusão na lista)
-          arr.sort((a,b) => state.errors.sessionWrong.indexOf(a.id) - state.errors.sessionWrong.indexOf(b.id));
-        }
-
-        if (year !== "Todos") arr = arr.filter(c => (c.year || "").trim() === year);
-        if (area !== "Todos") arr = arr.filter(c => (c.area || "").trim() === area);
-
-        if (onlyUnseen && state.ui.mode === "study") {
-          arr = arr.filter(c => !state.session.seen[c.id]);
-        }
-
-        if (q) {
-          arr = arr.filter(c => {
-            const blob = [
-              c.id, c.year, c.area,
-              c.text, (c.alts||[]).join("\n"),
-              c.answer, c.comment
-            ].join(" ").toLowerCase();
-            return blob.includes(q);
-          });
-        }
-
-        view.filtered = arr;
-        if (view.index >= view.filtered.length) view.index = 0;
-
-        updateBadges();
-        renderCard();
-      }
-
-      function updateBadges() {
-        els.badgeTotal.textContent = `Total: ${state.cards.length}`;
-        els.badgeFiltered.textContent = `Filtrados: ${view.filtered.length}`;
-        els.badgeCardIndex.textContent = `Card: ${view.filtered.length ? (view.index + 1) : 0}/${view.filtered.length}`;
-        els.badgeFace.textContent = view.face === "front" ? "Frente" : "Verso";
-
-        // stats sessão
-        els.badgeCorrect.textContent = `✅ Acertos: ${state.session.correct}`;
-        els.badgeWrong.textContent = `❌ Erros: ${state.session.wrong}`;
-        const total = state.session.correct + state.session.wrong;
-        const acc = total ? Math.round((state.session.correct / total) * 100) : 0;
-        els.badgeAccuracy.textContent = `🎯 Precisão: ${acc}%`;
-
-        // quick panel
-        els.sessionErrorsCount.textContent = `${state.errors.sessionWrong.length}`;
-      }
-
-      // =========================================================
-      // RENDER CARD
-      // =========================================================
-      function renderCard() {
-        const c = view.filtered[view.index];
-
-        if (!c) {
-          els.qYear.textContent = "—";
-          els.qArea.textContent = "—";
-          els.qId.textContent = "—";
-          els.cardText.textContent = "—";
-          els.cardAlts.innerHTML = "";
-          els.cardAnswer.textContent = "—";
-          els.cardComment.textContent = "—";
-          return;
-        }
-
-        els.qYear.textContent = c.year || "—";
-        els.qArea.textContent = c.area || "—";
-        els.qId.textContent = c.id || "—";
-
-        els.cardText.textContent = c.text || "";
-
-        els.cardAlts.innerHTML = (c.alts || []).map((t, i) => {
-          const letter = ["A","B","C","D","E"][i] || "?";
-          return `<div class="altLine"><span class="altLetter">${letter}</span><span class="altText">${escapeHtml(t)}</span></div>`;
-        }).join("");
-
-        els.cardAnswer.textContent = c.answer ? `Gabarito: ${c.answer}` : "Gabarito: —";
-        els.cardComment.textContent = c.comment ? c.comment : "—";
-
-        // face
-        if (view.face === "front") {
-          els.cardFront.style.display = "block";
-          els.cardBack.style.display = "none";
-        } else {
-          els.cardFront.style.display = "none";
-          els.cardBack.style.display = "block";
-        }
-
-        // marca visto (somente em estudo)
-        if (state.ui.mode === "study") {
-          state.session.seen[c.id] = true;
-          saveState(state);
-        }
-
-        updateBadges();
-      }
-
-      function flipCard() {
-        view.face = (view.face === "front") ? "back" : "front";
-        updateBadges();
-        renderCard();
-      }
-
-      function nav(delta) {
-        if (!view.filtered.length) return;
-        view.index = (view.index + delta + view.filtered.length) % view.filtered.length;
-        view.face = "front";
-        renderCard();
-      }
-
-      // =========================================================
-      // ANSWER BUTTONS
-      // =========================================================
-      function markCorrect() {
-        const c = view.filtered[view.index];
-        if (!c) return;
-        state.session.correct += 1;
-        state.stats.correctTotal += 1;
-
-        // se estiver em modo erros, remover da fila de erros da sessão ao acertar
-        if (state.ui.mode === "errors") {
-          state.errors.sessionWrong = state.errors.sessionWrong.filter(id => id !== c.id);
-        }
-
-        saveState(state);
-        updateBadges();
-        showToast("✅ Marcado como acerto");
-        nav(+1);
-      }
-
-      function markWrong() {
-        const c = view.filtered[view.index];
-        if (!c) return;
-        state.session.wrong += 1;
-        state.stats.wrongTotal += 1;
-
-        // registra erro na sessão (sem duplicar)
-        if (!state.errors.sessionWrong.includes(c.id)) {
-          state.errors.sessionWrong.push(c.id);
-        }
-
-        saveState(state);
-        updateBadges();
-        showToast("❌ Marcado como erro (vai para revisão)");
-        nav(+1);
-      }
-
-      // =========================================================
-      // MANAGE CARDS UI
-      // =========================================================
-      function renderCardsList() {
-        if (!state.cards.length) {
-          els.cardsList.innerHTML = `<div class="empty">Nenhum card ainda.</div>`;
-          return;
-        }
-
-        els.cardsList.innerHTML = state.cards.map(c => `
-          <div class="cardRow" data-id="${escapeHtml(c.id)}">
-            <div class="cardRowMain">
-              <div class="cardRowTitle">${escapeHtml(c.id)} <span class="muted">• ${escapeHtml(c.year||"—")} • ${escapeHtml(c.area||"—")}</span></div>
-              <div class="cardRowSub">${escapeHtml((c.text||"").slice(0, 120))}${(c.text||"").length>120 ? "…" : ""}</div>
-            </div>
-            <div class="cardRowActions">
-              <button class="miniBtn" data-act="edit">✏️</button>
-              <button class="miniBtn danger" data-act="del">🗑</button>
-            </div>
-          </div>
-        `).join("");
-
-        els.cardsList.querySelectorAll(".cardRow").forEach(row => {
-          row.addEventListener("click", (e) => {
-            const id = row.getAttribute("data-id");
-            const act = e.target && e.target.getAttribute ? e.target.getAttribute("data-act") : null;
-            if (act === "del") {
-              deleteCard(id);
-              e.stopPropagation();
-              return;
-            }
-            if (act === "edit") {
-              editCardInline(id);
-              e.stopPropagation();
-              return;
-            }
-          });
-        });
-      }
-
-      function deleteCard(id) {
-        if (!confirm(`Apagar o card ${id}?`)) return;
-        state.cards = state.cards.filter(c => c.id !== id);
-        delete state.session.seen[id];
-        state.errors.sessionWrong = state.errors.sessionWrong.filter(x => x !== id);
-        saveState(state);
-        rebuildFilterOptions();
-        applyFilters();
-        renderCardsList();
-        showToast("🗑 Card removido");
-      }
-
-      function editCardInline(id) {
-        const c = state.cards.find(x => x.id === id);
-        if (!c) return;
-
-        const text = prompt("Editar Enunciado/Texto-base:", c.text || "");
-        if (text === null) return;
-
-        const altsRaw = prompt("Editar alternativas (1 por linha, ordem A–E):", (c.alts||[]).join("\n"));
-        if (altsRaw === null) return;
-
-        const answer = prompt("Editar gabarito (A/B/C/D/E):", c.answer || "");
-        if (answer === null) return;
-
-        const comment = prompt("Editar comentário (opcional):", c.comment || "");
-        if (comment === null) return;
-
-        const alts = altsRaw.split("\n").map(s => s.trim()).filter(Boolean).slice(0,5);
-
-        c.text = text.trim();
-        c.alts = normalizeAlternatives(alts);
-        c.answer = normalizeAnswer(answer);
-        c.comment = (comment || "").trim();
-
-        saveState(state);
-        rebuildFilterOptions();
-        applyFilters();
-        renderCardsList();
-        showToast("✏️ Card atualizado");
-      }
-
-      // =========================================================
-      // BULK PARSER
-      // =========================================================
-      function normalizeAnswer(a) {
-        if (!a) return "";
-        const m = String(a).trim().toUpperCase().match(/[ABCDE]/);
-        return m ? m[0] : "";
-      }
-
-      function normalizeAlternatives(alts) {
-        // remove prefixos "A)" "A." "A -" etc
-        return (alts || []).map((s, idx) => {
-          let t = String(s).trim();
-          t = t.replace(/^[A-E]\s*[\)\.\-:]\s*/i, "");
-          // também aceita "1)" etc, mas mantém texto
-          return t.trim();
-        }).slice(0,5);
-      }
-
-      function createCardFromParts({ id, year, area, text, alts, answer, comment }) {
-        const card = {
-          id: id || generateSimpleId("Q"),
-          year: (year || "").trim(),
-          area: (area || "").trim(),
-          text: (text || "").trim(),
-          alts: normalizeAlternatives(alts || []),
-          answer: normalizeAnswer(answer),
-          comment: (comment || "").trim()
-        };
-
-        // valida mínimo
-        if (!card.text) return { ok: false, error: "Sem texto-base/enunciado." };
-        if (!card.alts || card.alts.length < 5) return { ok: false, error: "Precisa de 5 alternativas (A–E)." };
-        if (!card.answer) return { ok: false, error: "Sem gabarito." };
-
-        // id único
-        if (state.cards.some(c => c.id === card.id)) {
-          card.id = generateSimpleId(card.id);
-        }
-
-        state.cards.push(card);
-        return { ok: true, card };
-      }
-
-      function parseBulkText(raw, fallbackYear, fallbackArea) {
-        const txt = String(raw || "").replace(/\r/g, "").trim();
-        if (!txt) return { added: 0, errors: ["Texto vazio."] };
-
-        // separa blocos por duas quebras de linha ou por linha que começa com "Q" e número
-        // estratégia: quebrar por "\n\n" e depois tentar juntar caso seja ruim
-        const blocks = txt.split(/\n{2,}/g).map(b => b.trim()).filter(Boolean);
-
-        let added = 0;
-        const errors = [];
-
-        for (let bi = 0; bi < blocks.length; bi++) {
-          const b = blocks[bi];
-
-          // tenta capturar ID / Ano / Área no cabeçalho
-          // exemplos aceitos: "Q12 — (Ano: 2020) (Área: Humanas)" / "Q12 - 2020 Humanas" / "12."
-          const lines = b.split("\n").map(l => l.trim()).filter(Boolean);
-          if (lines.length < 7) {
-            errors.push(`Bloco ${bi+1}: muito curto.`);
-            continue;
-          }
-
-          const header = lines[0];
-
-          let id = "";
-          let year = "";
-          let area = "";
-
-          // ID
-          const idMatch = header.match(/^(Q?\s*\d+|ID\s*[:\-]\s*[\w\-]+)\b/i);
-          if (idMatch) {
-            id = idMatch[0].replace(/^ID\s*[:\-]\s*/i, "").replace(/\s+/g, "");
-            if (!/^Q/i.test(id) && /^\d+$/.test(id)) id = `Q${id}`;
-          } else {
-            // fallback: procura "ID:" em qualquer lugar
-            const anyId = b.match(/\bID\s*[:\-]\s*([\w\-]+)/i);
-            if (anyId) id = anyId[1].trim();
-          }
-
-          // Ano / Área explícitos
-          const yMatch = b.match(/\bAno\s*[:\-]\s*(\d{4})/i) || b.match(/\b(20\d{2}|19\d{2})\b/);
-          if (yMatch) year = (yMatch[1] || yMatch[0]).trim();
-
-          const aMatch = b.match(/\bÁrea\s*[:\-]\s*([^\n\)]+)\b/i);
-          if (aMatch) area = aMatch[1].trim();
-
-          year = year || (fallbackYear || "");
-          area = area || (fallbackArea || "");
-
-          // localizar gabarito + comentário
-          let answer = "";
-          let comment = "";
-
-          const ansLineIdx = lines.findIndex(l => /gabarito\s*[:\-]/i.test(l));
-          if (ansLineIdx !== -1) {
-            answer = normalizeAnswer(lines[ansLineIdx]);
-          } else {
-            // tenta achar "Resposta: X"
-            const r = b.match(/\b(resposta|alternativa)\s*[:\-]\s*([ABCDE])/i);
-            if (r) answer = normalizeAnswer(r[2]);
-          }
-
-          const comIdx = lines.findIndex(l => /^coment[aá]rio\s*[:\-]/i.test(l));
-          if (comIdx !== -1) {
-            comment = lines.slice(comIdx).join("\n").replace(/^coment[aá]rio\s*[:\-]\s*/i, "").trim();
-          }
-
-          // separar alternativas A–E
-          // pega as linhas que começam com A) B) etc
-          const altLines = [];
-          const altMap = {A:"",B:"",C:"",D:"",E:""};
-          let current = null;
-
-          for (let i = 0; i < lines.length; i++) {
-            const l = lines[i];
-            const m = l.match(/^([A-E])\s*[\)\.\-:]\s*(.*)$/i);
-            if (m) {
-              current = m[1].toUpperCase();
-              altMap[current] = (m[2] || "").trim();
-              continue;
-            }
-            // se estiver dentro de alternativa, concatena (quebra de linha dentro da alternativa)
-            if (current && !/^(gabarito|coment[aá]rio)\s*[:\-]/i.test(l)) {
-              altMap[current] = (altMap[current] ? altMap[current] + " " : "") + l.trim();
-            }
-          }
-
-          ["A","B","C","D","E"].forEach(k => altLines.push(altMap[k]));
-
-          // texto-base/enunciado: tudo entre header e primeira alternativa
-          const firstAltIdx = lines.findIndex(l => /^[A-E]\s*[\)\.\-:]/i.test(l));
-          let text = "";
-          if (firstAltIdx !== -1) {
-            const textLines = lines.slice(1, firstAltIdx); // após header
-            // remove possíveis linhas com ano/área/id adicionais
-            text = textLines.join("\n").trim();
-          } else {
-            // fallback: tenta até gabarito
-            const stop = ansLineIdx !== -1 ? ansLineIdx : lines.length;
-            text = lines.slice(1, stop).join("\n").trim();
-          }
-
-          const res = createCardFromParts({ id, year, area, text, alts: altLines, answer, comment });
-          if (!res.ok) {
-            errors.push(`Bloco ${bi+1}: ${res.error}`);
-          } else {
-            added += 1;
-          }
-        }
-
-        return { added, errors };
-      }
-
-      // =========================================================
-      // EXPORT / IMPORT JSON
-      // =========================================================
-      function download(filename, content, mime="application/json") {
-        const blob = new Blob([content], { type: mime });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      }
-
-      function exportJson() {
-        const payload = {
-          version: state.version,
-          exportedAt: new Date().toISOString(),
-          cards: state.cards
-        };
-        download(`flashcard_enem_cards_${todayISO()}.json`, JSON.stringify(payload, null, 2));
-        showToast("⬇️ JSON exportado");
-      }
-
-      function importJsonFile(file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const obj = JSON.parse(reader.result);
-            const incoming = Array.isArray(obj) ? obj : (obj.cards || []);
-            if (!Array.isArray(incoming)) throw new Error("JSON inválido");
-
-            let added = 0;
-            incoming.forEach(raw => {
-              const res = createCardFromParts({
-                id: raw.id || "",
-                year: raw.year || "",
-                area: raw.area || "",
-                text: raw.text || "",
-                alts: raw.alts || [],
-                answer: raw.answer || "",
-                comment: raw.comment || ""
-              });
-              if (res.ok) added++;
-            });
-
-            saveState(state);
-            rebuildFilterOptions();
-            applyFilters();
-            renderCardsList();
-            showToast(`✅ Importado: ${added} cards`);
-          } catch (e) {
-            alert("Falha ao importar JSON: " + e.message);
-          }
-        };
-        reader.readAsText(file);
-      }
-
-      // =========================================================
-      // EXPORT RESULT IMAGE
-      // =========================================================
-      async function exportResultImage() {
-        // captura um “cartão” de resumo com html2canvas
-        const wrap = document.createElement("div");
-        wrap.className = "exportCard";
-        wrap.innerHTML = `
-          <div class="exportTitle">Flashcard Pro ENEM — Resultado</div>
-          <div class="exportSub">${state.session.id || "Sessão"} • ${new Date().toLocaleString()}</div>
-          <div class="exportGrid">
-            <div class="exportStat"><div class="k">✅ Acertos</div><div class="v">${state.session.correct}</div></div>
-            <div class="exportStat"><div class="k">❌ Erros</div><div class="v">${state.session.wrong}</div></div>
-            <div class="exportStat"><div class="k">🎯 Precisão</div><div class="v">${(state.session.correct + state.session.wrong) ? Math.round((state.session.correct/(state.session.correct+state.session.wrong))*100) : 0}%</div></div>
-            <div class="exportStat"><div class="k">📌 Cards vistos</div><div class="v">${Object.keys(state.session.seen||{}).length}</div></div>
-          </div>
-          <div class="exportFoot">leothaylor.github.io • FlashcardENEMPRO</div>
-        `;
-        document.body.appendChild(wrap);
-
-        try {
-          const canvas = await html2canvas(wrap, { backgroundColor: null, scale: 2 });
-          const dataUrl = canvas.toDataURL("image/png");
-          const a = document.createElement("a");
-          a.href = dataUrl;
-          a.download = `resultado_${state.session.id || todayISO()}.png`;
-          a.click();
-          showToast("🖼️ Imagem exportada");
-        } catch (e) {
-          alert("Falha ao exportar imagem: " + e.message);
-        } finally {
-          wrap.remove();
-        }
-      }
-
-      // =========================================================
-      // RESET
-      // =========================================================
-      function resetSession() {
-        if (!confirm("Resetar a sessão atual? (zera acertos/erros da sessão e revisão)")) return;
-        state.session.correct = 0;
-        state.session.wrong = 0;
-        state.session.seen = {};
-        state.errors.sessionWrong = [];
-        saveState(state);
-        applyFilters();
-        updateBadges();
-        showToast("🔄 Sessão resetada");
-      }
-
-      function resetAll() {
-        if (!confirm("RESET TOTAL? Isso apaga cards, histórico e tudo no Local Storage.")) return;
-        localStorage.removeItem(LS_KEY);
-        Object.assign(state, structuredClone(DEFAULT_STATE));
-        ensureSession();
-        rebuildFilterOptions();
-        applyFilters();
-        renderCardsList();
-        showToast("🧨 Reset total feito");
-      }
-
-      // =========================================================
-      // DEMO CARD
-      // =========================================================
-      function insertDemo() {
-        const demo = {
-          id: generateSimpleId("Qdemo"),
-          year: "2020",
-          area: "Humanas",
-          text: "Texto-base (demo): Em uma democracia, os direitos fundamentais dependem tanto de leis quanto de práticas sociais e instituições que garantam sua efetividade.\n\nPergunta: Qual alternativa expressa uma condição necessária para que direitos deixem de ser apenas formais e se tornem concretos?",
-          alts: [
-            "Apenas a existência de um texto constitucional, independentemente de fiscalização.",
-            "A concentração de decisões em grupos restritos, para evitar conflitos políticos.",
-            "A presença de mecanismos institucionais de garantia e acesso efetivo aos direitos.",
-            "A redução de participação popular para garantir estabilidade governamental.",
-            "A substituição de políticas públicas por ações voluntárias pontuais."
-          ],
-          answer: "C",
-          comment: "Direitos efetivos exigem garantia institucional (acesso, fiscalização, políticas públicas, judiciário etc.)."
-        };
-        const res = createCardFromParts(demo);
-        if (res.ok) {
-          saveState(state);
-          rebuildFilterOptions();
-          applyFilters();
-          renderCardsList();
-          showToast("🎯 Demo inserida");
-        }
-      }
-
-      // =========================================================
-      // QUICK PANEL ACTIONS
-      // =========================================================
-      function goFirst() {
-        view.index = 0;
-        view.face = "front";
-        renderCard();
-      }
-      function goLast() {
-        view.index = Math.max(0, view.filtered.length - 1);
-        view.face = "front";
-        renderCard();
-      }
-
-      function toggleOnlyUnseen() {
-        state.ui.onlyUnseen = !state.ui.onlyUnseen;
-        els.btnOnlyUnseen.classList.toggle("active", state.ui.onlyUnseen);
-        saveState(state);
-        applyFilters();
-      }
-
-      function clearFilters() {
-        state.ui.search = "";
-        state.ui.year = "Todos";
-        state.ui.area = "Todos";
-        state.ui.onlyUnseen = false;
-
-        els.search.value = "";
-        els.btnOnlyUnseen.classList.remove("active");
-
-        rebuildFilterOptions();
-        saveState(state);
-        applyFilters();
-        showToast("🧹 Filtros limpos");
-      }
-
-      function startReview() {
-        if (!state.errors.sessionWrong.length) {
-          showToast("✅ Sem erros nesta sessão");
-          return;
-        }
-        state.ui.mode = "errors";
-        els.btnModeErrors.classList.add("active");
-        els.btnModeStudy.classList.remove("active");
-        saveState(state);
-        view.index = 0;
-        view.face = "front";
-        applyFilters();
-        showToast("🧪 Revisão de erros iniciada");
-      }
-
-      function clearErrorsList() {
-        if (!confirm("Limpar lista de erros da sessão?")) return;
-        state.errors.sessionWrong = [];
-        saveState(state);
-        applyFilters();
-        updateBadges();
-        showToast("🧽 Lista de erros limpa");
-      }
-
-      // =========================================================
-      // EVENTS
-      // =========================================================
-      els.btnManage.addEventListener("click", () => {
-        renderCardsList();
-        openModal(els.modalManage);
-      });
-      els.btnCloseManage.addEventListener("click", () => closeModal(els.modalManage));
-      els.modalManage.addEventListener("click", (e) => {
-        if (e.target === els.modalManage) closeModal(els.modalManage);
-      });
-
-      els.btnAddBulk.addEventListener("click", () => {
-        els.bulkYear.value = "";
-        els.bulkArea.value = "";
-        els.bulkText.value = "";
-        els.bulkResult.textContent = "";
-        openModal(els.modalBulk);
-      });
-      els.btnCloseBulk.addEventListener("click", () => closeModal(els.modalBulk));
-      els.modalBulk.addEventListener("click", (e) => {
-        if (e.target === els.modalBulk) closeModal(els.modalBulk);
-      });
-
-      els.btnParseBulk.addEventListener("click", () => {
-        const fy = (els.bulkYear.value || "").trim();
-        const fa = (els.bulkArea.value || "").trim();
-        const raw = els.bulkText.value || "";
-        const before = state.cards.length;
-
-        const { added, errors } = parseBulkText(raw, fy, fa);
-
-        const after = state.cards.length;
-        saveState(state);
-        rebuildFilterOptions();
-        applyFilters();
-        renderCardsList();
-
-        let msg = `✅ Adicionados: ${added} (total agora: ${after})`;
-        if (errors.length) msg += `\n\n⚠️ Erros:\n- ` + errors.join("\n- ");
-        els.bulkResult.textContent = msg;
-
-        if (added) showToast(`➕ +${added} cards`);
-      });
-
-      els.btnClearBulk.addEventListener("click", () => {
-        els.bulkText.value = "";
-        els.bulkResult.textContent = "";
-        showToast("🧽 Limpo");
-      });
-
-      els.btnDemo.addEventListener("click", insertDemo);
-
-      els.btnResetCards.addEventListener("click", () => {
-        if (!confirm("Apagar TODOS os cards?")) return;
-        state.cards = [];
-        state.session.seen = {};
-        state.errors.sessionWrong = [];
-        saveState(state);
-        rebuildFilterOptions();
-        applyFilters();
-        renderCardsList();
-        showToast("🧨 Cards apagados");
-      });
-
-      els.search.addEventListener("input", () => {
-        state.ui.search = els.search.value || "";
-        saveState(state);
-        applyFilters();
-      });
-
-      els.yearSelect.addEventListener("change", () => {
-        state.ui.year = els.yearSelect.value;
-        saveState(state);
-        applyFilters();
-      });
-
-      els.areaSelect.addEventListener("change", () => {
-        state.ui.area = els.areaSelect.value;
-        saveState(state);
-        applyFilters();
-      });
-
-      els.btnModeStudy.addEventListener("click", () => {
-        state.ui.mode = "study";
-        els.btnModeStudy.classList.add("active");
-        els.btnModeErrors.classList.remove("active");
-        saveState(state);
-        view.index = 0;
-        view.face = "front";
-        applyFilters();
-        showToast("📚 Modo estudo");
-      });
-
-      els.btnModeErrors.addEventListener("click", () => startReview());
-
-      els.btnPrev.addEventListener("click", () => nav(-1));
-      els.btnNext.addEventListener("click", () => nav(+1));
-      els.btnFlip.addEventListener("click", flipCard);
-
-      els.btnCorrect.addEventListener("click", markCorrect);
-      els.btnWrong.addEventListener("click", markWrong);
-
-      els.btnFirst.addEventListener("click", goFirst);
-      els.btnLast.addEventListener("click", goLast);
-      els.btnOnlyUnseen.addEventListener("click", toggleOnlyUnseen);
-      els.btnClearFilters.addEventListener("click", clearFilters);
-
-      els.btnStartReview.addEventListener("click", startReview);
-      els.btnClearErrors.addEventListener("click", clearErrorsList);
-
-      els.btnExportJson.addEventListener("click", exportJson);
-      els.btnImportJson.addEventListener("click", () => els.fileImport.click());
-      els.fileImport.addEventListener("change", (e) => {
-        const f = e.target.files && e.target.files[0];
-        if (f) importJsonFile(f);
-        e.target.value = "";
-      });
-
-      els.btnResetSession.addEventListener("click", resetSession);
-      els.btnResetAll.addEventListener("click", resetAll);
-
-      els.btnExportImage.addEventListener("click", exportResultImage);
-
-      // KEYBOARD (desktop)
-      window.addEventListener("keydown", (e) => {
-        // se modal aberto, ignora atalhos
-        if (document.body.classList.contains("modalOpen")) return;
-
-        if (e.key === "ArrowLeft") nav(-1);
-        if (e.key === "ArrowRight") nav(+1);
-        if (e.key.toLowerCase() === "r") resetSession();
-        if (e.key === " ") {
-          e.preventDefault();
-          flipCard();
-        }
-      });
-
-      // =========================================================
-      // INIT
-      // =========================================================
-      ensureSession();
-      rebuildFilterOptions();
-
-      // rehidrata UI
-      els.search.value = state.ui.search || "";
-      els.btnOnlyUnseen.classList.toggle("active", !!state.ui.onlyUnseen);
-
-      if (state.ui.mode === "errors") {
-        els.btnModeErrors.classList.add("active");
-        els.btnModeStudy.classList.remove("active");
-      } else {
-        els.btnModeStudy.classList.add("active");
-        els.btnModeErrors.classList.remove("active");
-      }
-
-      applyFilters();
-      renderCardsList();
-    </script>
-  </body>
 </html>
