@@ -21,7 +21,9 @@
       --txt: #eaf0ff;
       --muted: rgba(234,240,255,.60);
       --accent: #60a5fa;
-      --hard: #ef4444;
+      --good: #22c55e;
+      --bad: #ef4444;
+      --hard: #f59e0b;
       --radius: 18px;
       --shadow: 0 18px 80px rgba(0,0,0,.55);
       --glow: 0 0 20px rgba(96,165,250,.15);
@@ -42,7 +44,7 @@
     }
 
     .app {
-      width: min(800px, 100%);
+      width: min(860px, 100%);
       display: flex;
       flex-direction: column;
       gap: 20px;
@@ -81,7 +83,7 @@
       cursor: pointer;
     }
 
-    /* Progresso */
+    /* Progresso e Status */
     .progress-container {
       background: rgba(255,255,255,.03);
       border: 1px solid var(--border);
@@ -98,10 +100,14 @@
       font-size: 14px;
       font-weight: 600;
       color: var(--muted);
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .stats-row span b { color: var(--txt); }
     .stats-row .hard-count { color: var(--hard); }
+    .stats-row .good-count { color: var(--good); }
+    .stats-row .bad-count { color: var(--bad); }
 
     .progress-bar {
       height: 8px;
@@ -123,7 +129,8 @@
       border: 1px solid var(--border-glow);
       border-radius: var(--radius);
       box-shadow: var(--shadow), var(--glow);
-      min-height: 400px;
+      min-height: 450px;
+      max-height: 75vh;
       display: flex;
       flex-direction: column;
       position: relative;
@@ -137,23 +144,27 @@
       font-size: 13px;
       font-weight: 700;
       color: var(--muted);
+      flex-shrink: 0;
     }
 
     .card-body {
       padding: 24px 20px;
       flex: 1;
       overflow-y: auto;
-      max-height: 50vh;
-      font-size: 16px;
+      font-size: 15px;
       line-height: 1.6;
-      white-space: pre-wrap;
     }
 
     .card-body::-webkit-scrollbar { width: 8px; }
     .card-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
 
+    .question-text {
+      white-space: pre-wrap;
+      margin-bottom: 20px;
+    }
+
+    /* Alternativas */
     .alts {
-      margin-top: 20px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -162,15 +173,62 @@
     .alt {
       background: rgba(255,255,255,.02);
       border: 1px solid var(--border);
-      padding: 12px;
+      padding: 12px 16px;
       border-radius: 12px;
       display: flex;
       gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      align-items: flex-start;
+    }
+
+    .alt:hover:not(.locked) {
+      background: rgba(255,255,255,.05);
+      border-color: rgba(255,255,255,.2);
     }
 
     .alt .key {
       font-weight: 800;
-      color: var(--accent);
+      color: var(--muted);
+      min-width: 24px;
+    }
+
+    /* Estados das Alternativas */
+    .alt.selected {
+      background: rgba(96,165,250,.15);
+      border-color: var(--accent);
+    }
+    .alt.selected .key { color: var(--accent); }
+
+    .alt.correct {
+      background: rgba(34,197,94,.15) !important;
+      border-color: var(--good) !important;
+    }
+    .alt.correct .key { color: var(--good); }
+
+    .alt.wrong {
+      background: rgba(239,68,68,.15) !important;
+      border-color: var(--bad) !important;
+      opacity: 0.7;
+    }
+    .alt.wrong .key { color: var(--bad); }
+
+    .alt.locked {
+      cursor: default;
+    }
+
+    .feedback-box {
+      margin-top: 24px;
+      padding: 16px;
+      background: rgba(0,0,0,.2);
+      border-radius: 12px;
+      border-left: 4px solid var(--accent);
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     /* Botões */
@@ -183,6 +241,7 @@
       background: rgba(0,0,0,.1);
       border-bottom-left-radius: var(--radius);
       border-bottom-right-radius: var(--radius);
+      flex-shrink: 0;
     }
 
     .btn {
@@ -208,8 +267,8 @@
     .btn.primary { background: rgba(96,165,250,.15); border-color: var(--accent); color: var(--accent); }
     .btn.primary:hover { background: rgba(96,165,250,.25); }
 
-    .btn.hard { border-color: rgba(239,68,68,.4); color: #fca5a5; }
-    .btn.hard.active { background: rgba(239,68,68,.2); border-color: var(--hard); }
+    .btn.hard { border-color: rgba(245,158,11,.4); color: #fbbf24; }
+    .btn.hard.active { background: rgba(245,158,11,.2); border-color: var(--hard); }
 
     .utility-bar {
       display: flex;
@@ -242,7 +301,9 @@
       <div class="stats-row">
         <span>Progresso: <b id="uiProgress">0 / 0</b></span>
         <span>Revisados: <b id="uiReviewed">0</b></span>
-        <span class="hard-count">Difíceis marcadas: <b id="uiHardCount">0</b></span>
+        <span class="good-count">Acertos: <b id="uiHits">0</b></span>
+        <span class="bad-count">Erros: <b id="uiMisses">0</b></span>
+        <span class="hard-count">🔥 Difíceis: <b id="uiHardCount">0</b></span>
       </div>
       <div class="progress-bar">
         <div class="progress-fill" id="uiProgressBar"></div>
@@ -280,65 +341,140 @@
 
   <script>
     /* =========================================================
-       1. BASE DE DADOS HARDCODED (Adicione suas questões aqui)
+       1. BASE DE DADOS HARDCODED 
        ========================================================= */
     const DATABASE = {
-      "ENEM 2020 - Humanas": [
+      "ENEM 2020 - Inglês": [
         {
           id: "Q01",
-          text: "A noção de cidadania moderna associa-se ao reconhecimento de direitos civis, políticos e sociais, vinculando-se a processos históricos de ampliação da participação.",
+          text: "Os recursos usados nesse pôster de divulgação de uma campanha levam o leitor a refletir sobre a necessidade de",
           alts: [
-            "Predomínio do poder religioso sobre as instituições estatais.",
-            "Substituição da lei por decisões individuais.",
-            "Ampliação de direitos e participação na vida pública.",
-            "Supressão de conflitos sociais por coerção.",
-            "Eliminação de políticas redistributivas."
+            "criticar o tipo de tratamento dado à mulher.",
+            "rever o desempenho da mulher no trabalho.",
+            "questionar a sobrecarga de atribuições da mulher.",
+            "analisar as pesquisas acerca dos direitos da mulher.",
+            "censurar a mulher pelo uso de determinadas palavras."
           ],
-          answer: "C",
-          comment: "A cidadania moderna é fundamentada na expansão gradual de direitos (civis, depois políticos, e sociais) que garantem maior integração e voz do indivíduo na sociedade."
+          answer: "A",
+          comment: "A questão analisa o uso de elementos verbais e não verbais para criticar o machismo estrutural e o tratamento dado às mulheres na sociedade."
         },
         {
-          id: "Q02",
-          text: "No contexto da Revolução Industrial, as condições de trabalho nas fábricas inglesas do século XIX caracterizavam-se por:",
+          id: "Q03",
+          text: `A Mother in a Refugee Camp\nNo Madonna and Child could touch\nHer tenderness for a son\nShe soon would have to forget...\nThe air was heavy with odors of diarrhea,\nOf unwashed children with washed-out ribs\nAnd dried-up bottoms waddling in labored steps\nBehind blown-empty bellies.\n\nO escritor nigeriano Chinua Achebe traz uma reflexão sobre a situação dos refugiados em um cenário pós-guerra civil em seu país. Essa reflexão é construída no poema por meio da representação de uma mãe, explorando a(s)`,
           alts: [
-            "Jornadas reduzidas e altos salários.",
-            "Proteção estatal rigorosa ao trabalhador infantil.",
-            "Jornadas exaustivas, insalubridade e exploração de mulheres e crianças.",
-            "Igualdade salarial entre gêneros.",
-            "Ausência de acidentes de trabalho devido à tecnologia avançada."
+            "demonstração de orgulho por não precisar pedir doações.",
+            "descrições artísticas detalhadas de uma obra conhecida.",
+            "aceitação de um diagnóstico de doença terminal do filho.",
+            "consternação ao visitar o túmulo do filho recém-falecido.",
+            "impressões sensoriais experimentadas no ambiente."
           ],
-          answer: "C",
-          comment: "A Primeira Revolução Industrial foi marcada por severa exploração laboral, longas jornadas e falta de qualquer legislação trabalhista de proteção."
+          answer: "E",
+          comment: "O eu lírico constrói o cenário desolador do campo de refugiados focando nas impressões sensoriais (como 'odors of diarrhea')."
+        },
+        {
+          id: "Q04",
+          text: "A Minor Bird\nI have wished a bird would fly away,\nAnd not sing by my house all day;\nHave clapped my hands at him from the door\nWhen it seemed as if I could bear no more.\nThe fault must partly have been in me.\nThe bird was not to blame for his key.\nAnd of course there must be something wrong\nIn wanting to silence any song.\n\nNo poema de Robert Frost, as palavras “fault” e “blame” revelam por parte do eu lírico uma",
+          alts: [
+            "culpa por não poder cuidar do pássaro.",
+            "atitude errada por querer matar o pássaro.",
+            "necessidade de entender o silêncio do pássaro.",
+            "sensibilização com relação à natureza do pássaro.",
+            "irritação quanto à persistência do canto do pássaro."
+          ],
+          answer: "D",
+          comment: "Ao usar 'fault' (culpa) e 'blame' (culpa/responsabilidade), o eu lírico percebe que o pássaro está apenas seguindo sua natureza, demonstrando sensibilização."
         }
       ],
-      "ENEM 2020 - Natureza": [
+      "ENEM 2020 - Espanhol": [
         {
-          id: "Q03",
-          text: "A fotossíntese é um processo fundamental para a manutenção da vida na Terra. Qual gás é consumido e qual é liberado na fase fotoquímica?",
+          id: "Q01_ESP",
+          text: "Pablo Pueblo\nRegresa un hombre en silencio\nDe su trabajo cansado\nSu paso no lleva prisa\nSu sombra nunca lo alcanza\nLo espera el barrio de siempre\nCon el farol en la esquina\n\nRubén Blades es un compositor panameño de canciones socialmente comprometidas. El título Pablo Pueblo, asociado al contenido de la letra de la canción, revela una crítica social al",
           alts: [
-            "Consome O2, libera CO2.",
-            "Consome CO2, libera O2.",
-            "Consome H2O, libera O2.",
-            "Consome N2, libera O2.",
-            "Consome CO2, libera CH4."
+            "contrapor a individualidade de um sujeito a uma estrutura social marcada pela decepção na atuação política.",
+            "demonstrar que o problema sofrido pelo indivíduo atinge toda a comunidade.",
+            "relativizar a importância que se dá ao sofrimento individual em uma estrutura social baseada na exploração.",
+            "descrever a vida de um sujeito que nunca resolve suas inquietações e, por isso, mantém-se silencioso.",
+            "usar um apelido jocoso para designar a atuação de um indivíduo em seu próprio bairro."
+          ],
+          answer: "A",
+          comment: "A música personifica no indivíduo 'Pablo Pueblo' a frustração coletiva do povo frente às promessas políticas não cumpridas."
+        }
+      ],
+      "ENEM 2020 - Linguagens": [
+        {
+          id: "Q06",
+          text: "Vou-me embora p’ra Pasárgada foi o poema de mais longa gestação em toda a minha obra. Vi pela primeira vez esse nome Pasárgada quando tinha os meus dezesseis anos e foi num autor grego. [...] Gosto desse poema porque vejo nele, em escorço, toda a minha vida [...].\n\nOs processos de interação comunicativa preveem a presença ativa de múltiplos elementos da comunicação, entre os quais se destacam as funções da linguagem. Nesse fragmento, a função da linguagem predominante é a",
+          alts: [
+            "emotiva, porque o poeta expõe os sentimentos de angústia que o levaram à criação poética.",
+            "referencial, porque o texto informa sobre a origem do nome empregado em um famoso poema de Bandeira.",
+            "metalinguística, porque o poeta tece comentários sobre a gênese e o processo de escrita de um de seus poemas.",
+            "poética, porque o texto aborda os elementos estéticos de um dos poemas mais conhecidos de Bandeira.",
+            "apelativa, porque o poeta tenta convencer os leitores sobre sua dificuldade de compor um poema."
           ],
           answer: "C",
-          comment: "Na fase clara (fotoquímica), ocorre a fotólise da água (H2O), liberando gás oxigênio (O2) para o ambiente."
+          comment: "A função metalinguística ocorre quando o código (a linguagem/poema) é utilizado para explicar o próprio código (o processo de criação do poema)."
+        },
+        {
+          id: "Q08",
+          text: "Slam do Corpo é um encontro pensado para surdos e ouvintes, existente desde 2014, em São Paulo. [...] Nos saraus, o primeiro objetivo foi o de botar os poemas em Libras na roda, colocar os surdos para circular e entender esse encontro entre a poesia e a língua de sinais. O que vale é modular a voz e o corpo, um trabalho artesanal de tornar a palavra “visível”.\n\nNa prática artística mencionada no texto, o corpo assume papel de destaque ao articular diferentes linguagens com o intuito de",
+          alts: [
+            "imprimir ritmo e visibilidade à expressão poética.",
+            "redefinir o espaço de circulação da poesia urbana.",
+            "estimular produções autorais de usuários de Libras.",
+            "traduzir expressões verbais para a língua de sinais.",
+            "proporcionar performances estéticas de pessoas surdas."
+          ],
+          answer: "A",
+          comment: "O corpo é utilizado para dar 'visibilidade' e ritmo à palavra por meio da Libras e da performance corporal integradas."
+        }
+      ],
+      "ENEM 2020 - Humanas": [
+        {
+          id: "Q46",
+          text: "Embora inegáveis os benefícios que ambas as economias têm auferido do intercâmbio comercial, o Brasil tem reiterado seu objetivo de desenvolver com a China uma relação comercial menos assimétrica. As exportações brasileiras de produtos básicos compõem algo entre 75% e 80% da pauta, ao passo que as importações brasileiras consistem em 95% de produtos industrializados chineses.\n\nUma ação estatal de longo prazo capaz de reduzir a assimetria na balança comercial brasileira, conforme exposto no texto, é o(a)",
+          alts: [
+            "expansão do setor extrativista.",
+            "incremento da atividade agrícola.",
+            "diversificação da matriz energética.",
+            "fortalecimento da pesquisa científica.",
+            "monitoramento do fluxo alfandegário."
+          ],
+          answer: "D",
+          comment: "Para exportar produtos com maior valor agregado (tecnologia/indústria) e reduzir a dependência de commodities, o Estado precisa investir em pesquisa e desenvolvimento científico."
+        },
+        {
+          id: "Q47",
+          text: "As estatísticas mais recentes do Brasil rural revelam um paradoxo: o emprego de natureza agrícola definha em praticamente todo o país, mas a população residente no campo voltou a crescer. Esse novo cenário é explicado em parte pelo incremento do emprego não agrícola no campo. Ao mesmo tempo, aumentou a massa de desempregados, inativos e aposentados que mantêm residência rural.\n\nSobre o espaço brasileiro, o texto apresenta argumentos que refletem a",
+          alts: [
+            "heterogeneidade do modo de vida agrário.",
+            "redução do fluxo populacional nas cidades.",
+            "correlação entre força de trabalho e migração sazonal.",
+            "indissociabilidade entre local de moradia e acesso à renda.",
+            "desregulamentação das propriedades nas zonas de fronteira."
+          ],
+          answer: "A",
+          comment: "O campo brasileiro não é mais exclusivamente voltado para a agropecuária; ele abriga atividades não agrícolas, aposentados e desempregados, mostrando grande heterogeneidade."
         }
       ]
     };
 
     /* =========================================================
-       2. ESTADO DA SESSÃO (Zera ao recarregar a página)
+       2. ESTADO DA SESSÃO 
        ========================================================= */
     let currentDeckName = "";
     let deckCards = [];
     let currentIndex = 0;
-    let isFlipped = false;
     
-    // Conjuntos para rastrear interações na sessão
+    // Estados do Card Atual
+    let isFlipped = false;
+    let selectedAnswer = null; // Guarda a letra da alternativa selecionada (A, B, C...)
+    
+    // Métricas da Sessão
     let reviewedCards = new Set();
     let hardCards = new Set();
+    let scoredCards = new Set(); // Evita contar acerto/erro duas vezes no mesmo card
+    let sessionHits = 0;
+    let sessionMisses = 0;
 
     /* =========================================================
        3. ELEMENTOS DA UI
@@ -347,11 +483,15 @@
       deckSelector: document.getElementById('deckSelector'),
       uiProgress: document.getElementById('uiProgress'),
       uiReviewed: document.getElementById('uiReviewed'),
+      uiHits: document.getElementById('uiHits'),
+      uiMisses: document.getElementById('uiMisses'),
       uiHardCount: document.getElementById('uiHardCount'),
       uiProgressBar: document.getElementById('uiProgressBar'),
+      
       uiCardId: document.getElementById('uiCardId'),
       uiCardSide: document.getElementById('uiCardSide'),
       uiCardContent: document.getElementById('uiCardContent'),
+      
       btnPrev: document.getElementById('btnPrev'),
       btnFlip: document.getElementById('btnFlip'),
       btnHard: document.getElementById('btnHard'),
@@ -367,7 +507,6 @@
        4. LÓGICA DE NAVEGAÇÃO E RENDERIZAÇÃO
        ========================================================= */
     function init() {
-      // Popular select de decks
       els.deckSelector.innerHTML = "";
       Object.keys(DATABASE).forEach(deck => {
         const opt = document.createElement('option');
@@ -376,10 +515,8 @@
         els.deckSelector.appendChild(opt);
       });
 
-      // Carregar primeiro deck
       loadDeck(els.deckSelector.value);
 
-      // Event Listeners UI
       els.deckSelector.addEventListener('change', (e) => loadDeck(e.target.value));
       els.btnFlip.addEventListener('click', toggleFlip);
       els.btnPrev.addEventListener('click', () => navigate(-1));
@@ -390,7 +527,6 @@
       els.btnReviewHards.addEventListener('click', startHardReview);
       els.btnExport.addEventListener('click', exportResultPNG);
 
-      // Atalhos de teclado
       document.addEventListener('keydown', (e) => {
         if (e.key.toLowerCase() === 'r') { e.preventDefault(); toggleFlip(); }
         if (e.key === 'ArrowRight') navigate(1);
@@ -402,16 +538,30 @@
       currentDeckName = deckName;
       deckCards = customCardsArray ? [...customCardsArray] : [...DATABASE[deckName]];
       
-      // Se não for revisão de difíceis, zera a sessão
       if (!customCardsArray) {
         reviewedCards.clear();
         hardCards.clear();
+        scoredCards.clear();
+        sessionHits = 0;
+        sessionMisses = 0;
       }
       
       currentIndex = 0;
-      isFlipped = false;
+      resetCardState();
       renderCard();
     }
+
+    function resetCardState() {
+      isFlipped = false;
+      selectedAnswer = null;
+    }
+
+    // Função chamada globalmente pelo onclick do HTML gerado
+    window.selectAlt = function(letter) {
+      if (isFlipped) return; // Bloqueia mudança se já virou a carta
+      selectedAnswer = letter;
+      renderCard();
+    };
 
     function renderCard() {
       if (deckCards.length === 0) {
@@ -422,58 +572,81 @@
       }
 
       const card = deckCards[currentIndex];
-      
-      // Marcar como revisado ao exibir a frente
       reviewedCards.add(card.id);
       
       els.uiCardId.textContent = `Card: ${card.id}`;
       els.btnHard.classList.toggle('active', hardCards.has(card.id));
 
-      if (!isFlipped) {
-        // FRENTE
-        els.uiCardSide.textContent = "Frente (Pergunta)";
-        els.btnFlip.textContent = "R — Mostrar Resposta";
+      els.uiCardSide.textContent = isFlipped ? "Verso (Resposta)" : "Frente (Pergunta)";
+      els.btnFlip.textContent = isFlipped ? "R — Ocultar Resposta" : "R — Mostrar Resposta";
+
+      // Monta o HTML dinamicamente
+      let html = `<div class="question-text">${card.text}</div>`;
+      
+      if (card.alts && card.alts.length > 0) {
+        html += `<div class="alts">`;
+        const keys = ["A","B","C","D","E"];
         
-        let html = `<div>${card.text.replace(/\n/g, '<br/>')}</div>`;
-        if (card.alts && card.alts.length > 0) {
-          html += `<div class="alts">`;
-          const keys = ["A","B","C","D","E"];
-          card.alts.forEach((alt, i) => {
-            html += `<div class="alt"><span class="key">${keys[i]})</span><span>${alt}</span></div>`;
-          });
-          html += `</div>`;
-        }
-        els.uiCardContent.innerHTML = html;
-      } else {
-        // VERSO
-        els.uiCardSide.textContent = "Verso (Resposta)";
-        els.btnFlip.textContent = "R — Mostrar Pergunta";
-        
-        let html = `<div><strong style="color:var(--accent); font-size:18px;">Gabarito: ${card.answer}</strong></div>`;
-        if (card.comment) {
-          html += `<div style="margin-top:20px;"><strong>Comentário:</strong><br/>${card.comment.replace(/\n/g, '<br/>')}</div>`;
-        }
-        els.uiCardContent.innerHTML = html;
+        card.alts.forEach((alt, i) => {
+          const key = keys[i];
+          let classes = "alt";
+          let clickAttr = `onclick="selectAlt('${key}')"`;
+
+          if (!isFlipped) {
+            if (selectedAnswer === key) classes += " selected";
+          } else {
+            classes += " locked";
+            clickAttr = ""; // Remove ação de clique no verso
+            
+            if (key === card.answer) {
+              classes += " correct";
+            } else if (selectedAnswer === key) {
+              classes += " wrong";
+            }
+          }
+
+          html += `<div class="${classes}" ${clickAttr}><span class="key">${key})</span><span>${alt}</span></div>`;
+        });
+        html += `</div>`;
       }
 
+      // Se virado, anexa gabarito e comentário no fim
+      if (isFlipped) {
+        html += `
+          <div class="feedback-box">
+            <div style="font-weight: 800; color: var(--accent); margin-bottom: 8px;">Gabarito Correto: ${card.answer}</div>
+            ${card.comment ? `<div style="font-size: 14px; color: var(--txt);">${card.comment}</div>` : ''}
+          </div>
+        `;
+      }
+
+      els.uiCardContent.innerHTML = html;
       updateProgress();
+    }
+
+    function toggleFlip() {
+      if (deckCards.length === 0) return;
+      const card = deckCards[currentIndex];
+
+      // Computa acerto/erro na exata hora em que vira o card PELA PRIMEIRA VEZ
+      if (!isFlipped && selectedAnswer && !scoredCards.has(card.id)) {
+        if (selectedAnswer === card.answer) sessionHits++;
+        else sessionMisses++;
+        scoredCards.add(card.id);
+      }
+
+      isFlipped = !isFlipped;
+      renderCard();
     }
 
     function navigate(delta) {
       if (deckCards.length === 0) return;
       currentIndex += delta;
       
-      // Loop infinito (se passar do último volta pro primeiro e vice-versa)
       if (currentIndex >= deckCards.length) currentIndex = 0;
       if (currentIndex < 0) currentIndex = deckCards.length - 1;
       
-      isFlipped = false;
-      renderCard();
-    }
-
-    function toggleFlip() {
-      if (deckCards.length === 0) return;
-      isFlipped = !isFlipped;
+      resetCardState();
       renderCard();
     }
 
@@ -481,12 +654,10 @@
       if (deckCards.length === 0) return;
       const cardId = deckCards[currentIndex].id;
       
-      if (hardCards.has(cardId)) {
-        hardCards.delete(cardId);
-      } else {
-        hardCards.add(cardId);
-      }
-      renderCard(); // Atualiza cor do botão e contadores
+      if (hardCards.has(cardId)) hardCards.delete(cardId);
+      else hardCards.add(cardId);
+      
+      renderCard();
     }
 
     function updateProgress() {
@@ -497,19 +668,20 @@
 
       els.uiProgress.textContent = `${current} / ${total}`;
       els.uiReviewed.textContent = revCount;
+      els.uiHits.textContent = sessionHits;
+      els.uiMisses.textContent = sessionMisses;
       els.uiHardCount.textContent = hardCards.size;
       els.uiProgressBar.style.width = `${pct}%`;
     }
 
     function shuffleDeck() {
       if (deckCards.length === 0) return;
-      // Algoritmo Fisher-Yates
       for (let i = deckCards.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [deckCards[i], deckCards[j]] = [deckCards[j], deckCards[i]];
       }
       currentIndex = 0;
-      isFlipped = false;
+      resetCardState();
       renderCard();
     }
 
@@ -518,45 +690,65 @@
         alert("Nenhum card marcado como difícil nesta sessão.");
         return;
       }
-      // Filtra o banco base do deck atual para pegar apenas os IDs difíceis
       const hardsArray = DATABASE[currentDeckName].filter(c => hardCards.has(c.id));
       loadDeck(currentDeckName + " (Revisão)", hardsArray);
     }
 
     /* =========================================================
-       5. EXPORTAÇÃO (SESSÃO)
+       5. EXPORTAÇÃO ESTRUTURADA
        ========================================================= */
     async function exportResultPNG() {
       if (deckCards.length === 0) return;
       
       const now = new Date();
       const dateStr = now.toLocaleDateString() + " às " + now.toLocaleTimeString();
+      const totalAns = sessionHits + sessionMisses;
+      const accuracy = totalAns > 0 ? Math.round((sessionHits / totalAns) * 100) : 0;
 
       const box = document.createElement('div');
       box.style.background = '#0c172a';
       box.style.color = '#eaf0ff';
-      box.style.padding = '30px';
-      box.style.borderRadius = '18px';
+      box.style.padding = '32px';
+      box.style.borderRadius = '24px';
       box.style.border = '2px solid rgba(96,165,250,0.5)';
       box.style.fontFamily = 'Inter, sans-serif';
-      box.style.width = '600px';
+      box.style.width = '640px';
 
       let hardsList = Array.from(hardCards).join(', ') || 'Nenhum';
 
       box.innerHTML = `
-        <h2 style="margin: 0 0 5px 0; color: #60a5fa;">🧠 Resultado da Sessão</h2>
-        <p style="margin: 0 0 20px 0; opacity: 0.7; font-size: 14px;">${dateStr}</p>
+        <h2 style="margin: 0 0 8px 0; color: #60a5fa; font-size: 24px; display: flex; align-items: center; gap: 10px;">
+          🧠 Resultado da Sessão
+        </h2>
+        <p style="margin: 0 0 24px 0; opacity: 0.7; font-size: 14px;">${dateStr}</p>
         
-        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-          <p style="margin: 5px 0;"><strong>Deck:</strong> ${currentDeckName}</p>
-          <p style="margin: 5px 0;"><strong>Total no Deck:</strong> ${deckCards.length}</p>
-          <p style="margin: 5px 0;"><strong>Cards Revisados:</strong> ${reviewedCards.size}</p>
-          <p style="margin: 5px 0; color: #ef4444;"><strong>Marcados como Difícil:</strong> ${hardCards.size}</p>
+        <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px; margin-bottom: 24px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 16px;">
+            <div><strong>Deck:</strong> ${currentDeckName}</div>
+            <div><strong>Total no Deck:</strong> ${deckCards.length}</div>
+            <div><strong>Cards Revisados:</strong> ${reviewedCards.size}</div>
+            <div style="color: #f59e0b;"><strong>Marcados como Difícil:</strong> ${hardCards.size}</div>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+            <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); padding: 16px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 13px; color: #22c55e; font-weight: 700; text-transform: uppercase;">Acertos</div>
+                <div style="font-size: 28px; font-weight: 800; color: #fff;">${sessionHits}</div>
+            </div>
+            <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 16px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 13px; color: #ef4444; font-weight: 700; text-transform: uppercase;">Erros</div>
+                <div style="font-size: 28px; font-weight: 800; color: #fff;">${sessionMisses}</div>
+            </div>
+            <div style="background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3); padding: 16px; border-radius: 12px; text-align: center;">
+                <div style="font-size: 13px; color: #60a5fa; font-weight: 700; text-transform: uppercase;">Precisão</div>
+                <div style="font-size: 28px; font-weight: 800; color: #fff;">${accuracy}%</div>
+            </div>
         </div>
 
         <div>
-          <h3 style="margin-bottom: 10px; font-size: 16px;">IDs Difíceis para revisar futuramente:</h3>
-          <p style="background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3); font-family: monospace; font-size: 14px; word-wrap: break-word;">
+          <h3 style="margin-bottom: 12px; font-size: 15px; color: rgba(255,255,255,0.8);">IDs Difíceis para revisar futuramente:</h3>
+          <p style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); font-family: monospace; font-size: 15px; word-wrap: break-word; color: #fca5a5; line-height: 1.5;">
             ${hardsList}
           </p>
         </div>
@@ -571,7 +763,7 @@
         
         const a = document.createElement("a");
         a.href = dataUrl;
-        a.download = `Sessao_Flashcard_${now.getTime()}.png`;
+        a.download = `Resultado_Flashcard_${now.getTime()}.png`;
         a.click();
       } catch (err) {
         console.error("Erro ao gerar imagem:", err);
